@@ -24,6 +24,11 @@ type GenerateResponse = {
   warning?: string;
 };
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 const starterPrompt = "make a navigation app with a glass overlay HUD";
 
 const promptPresets = [
@@ -49,6 +54,15 @@ function safeFileName(input: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "project"
   );
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -106,6 +120,200 @@ function getPreviewConfig(project: GeneratedProject | null) {
   };
 }
 
+function buildPreviewSrcDoc(project: GeneratedProject | null) {
+  const config = getPreviewConfig(project);
+  const title = escapeHtml(project?.projectName ?? "Generated project");
+  const tagline = escapeHtml(project?.tagline ?? "Your app will appear here.");
+  const description = escapeHtml(
+    project?.description ?? "Generate a project to see the visible app preview."
+  );
+
+  const stack = (project?.stack?.length ? project.stack : ["Next.js", "TypeScript", "React"])
+    .slice(0, 3)
+    .map((item) => `<span class="chip">${escapeHtml(item)}</span>`)
+    .join("");
+
+  const chips = config.chips.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #fff;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(83, 240, 176, 0.12), transparent 26%),
+        linear-gradient(180deg, #0a0e18 0%, #04070d 100%);
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 36px 36px;
+      opacity: 0.08;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+      pointer-events: none;
+    }
+    .wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      backdrop-filter: blur(18px);
+    }
+    .hero {
+      max-width: 380px;
+      padding-top: 8px;
+    }
+    .kicker {
+      margin: 0 0 10px;
+      color: #86c8ff;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+    .copy {
+      margin: 10px 0 0;
+      color: rgba(255,255,255,0.72);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+    .hud {
+      margin-top: auto;
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(18px);
+    }
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .mini {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.64);
+    }
+    .mini.muted {
+      color: rgba(255,255,255,0.5);
+    }
+    .center {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      padding: 10px 0 18px;
+    }
+    .arrow {
+      font-size: 82px;
+      line-height: 1;
+      font-weight: 800;
+      text-shadow: 0 0 24px rgba(134, 200, 255, 0.26);
+    }
+    .distance {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+    }
+    .distance span {
+      font-size: 0.42em;
+      color: rgba(255,255,255,0.62);
+      margin-left: 6px;
+    }
+    .rows {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+      color: rgba(255,255,255,0.82);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="badge">LIVE PREVIEW</div>
+      <div class="badge">${escapeHtml(project?.stack?.[0] ?? "Next.js")}</div>
+    </div>
+
+    <div class="hero">
+      <p class="kicker">${title}</p>
+      <h1>${escapeHtml(config.headline)}</h1>
+      <p class="copy">${tagline}</p>
+      <p class="copy">${description}</p>
+    </div>
+
+    <div class="hud">
+      <div class="hud-top">
+        <span class="mini">${escapeHtml(config.badge)}</span>
+        <span class="mini muted">Preview mode</span>
+      </div>
+
+      <div class="center">
+        <div class="arrow">${config.arrow}</div>
+        <div class="distance">${config.distance}<span>m</span></div>
+      </div>
+
+      <div class="rows">
+        ${stack}
+        ${chips}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export default function Page() {
   const [prompt, setPrompt] = useState(starterPrompt);
   const [project, setProject] = useState<GeneratedProject | null>(null);
@@ -117,9 +325,25 @@ export default function Page() {
   const [copied, setCopied] = useState(false);
   const [showManifest, setShowManifest] = useState(false);
 
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "Ask me to improve the generated app, change the style, or add new features.",
+    },
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
+
   useEffect(() => {
     setSelectedPath(project?.files?.[0]?.path ?? "");
   }, [project]);
+
+  useEffect(() => {
+    const last = document.querySelector<HTMLDivElement>(".chat-box .last-anchor");
+    last?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
 
   const selectedFile = useMemo(() => {
     if (!project) return null;
@@ -130,7 +354,8 @@ export default function Page() {
     );
   }, [project, selectedPath]);
 
-  const preview = useMemo(() => getPreviewConfig(project), [project]);
+  const previewSrcDoc = useMemo(() => buildPreviewSrcDoc(project), [project]);
+  const previewConfig = useMemo(() => getPreviewConfig(project), [project]);
 
   const buildStatus =
     loading
@@ -231,6 +456,58 @@ export default function Page() {
     window.setTimeout(() => setCopied(false), 1200);
   }
 
+  async function sendChat(customText?: string) {
+    const text = (customText ?? chatInput).trim();
+    if (!text || chatLoading) return;
+
+    setChatError("");
+    setChatInput("");
+
+    const nextMessages: ChatMessage[] = [
+      ...chatMessages,
+      { role: "user", content: text },
+    ];
+
+    setChatMessages(nextMessages);
+    setChatLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: nextMessages,
+          project,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.warning || data?.error || "Chat failed");
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: String(data?.reply ?? "I could not answer.") },
+      ]);
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Unknown error");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "I had trouble reaching the AI. Try again, or change the prompt and generate again.",
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   const stackChips = project?.stack ?? [];
   const fileCount = project?.files.length ?? 0;
   const selectedCode = selectedFile?.content ?? "";
@@ -246,8 +523,7 @@ export default function Page() {
           <p className="eyebrow">AI APP GENERATOR</p>
           <h1>Build real projects from a prompt</h1>
           <p className="subtext">
-            Generate a project, inspect the files, preview the code, see the
-            app, and download the whole app as a ZIP.
+            Generate a project, inspect the files, preview the code, see the app, and chat with the AI.
           </p>
         </div>
 
@@ -355,9 +631,7 @@ export default function Page() {
               project.files.map((file) => (
                 <button
                   key={file.path}
-                  className={`file-item ${
-                    selectedPath === file.path ? "active" : ""
-                  }`}
+                  className={`file-item ${selectedPath === file.path ? "active" : ""}`}
                   onClick={() => setSelectedPath(file.path)}
                   type="button"
                 >
@@ -386,9 +660,7 @@ export default function Page() {
             <div>
               <h2>Code output</h2>
               <p className="panel-subtitle">
-                {selectedFile
-                  ? selectedFile.path
-                  : "Select a file to preview its code"}
+                {selectedFile ? selectedFile.path : "Select a file to preview its code"}
               </p>
             </div>
 
@@ -405,9 +677,7 @@ export default function Page() {
           {selectedFile ? (
             <>
               <div className="code-meta">
-                <span className="code-pill">
-                  {fileLanguage(selectedFile.path)}
-                </span>
+                <span className="code-pill">{fileLanguage(selectedFile.path)}</span>
                 <span className="code-pill muted">{selectedFile.path}</span>
               </div>
 
@@ -423,66 +693,78 @@ export default function Page() {
             <div>
               <h2>App preview</h2>
               <p className="panel-subtitle">
-                This shows the generated app as a visible preview
+                This iframe is built from the generated project
               </p>
             </div>
           </div>
 
-          <div className={`app-preview ${preview.accent}`}>
-            <div className="preview-orb preview-orb-a" />
-            <div className="preview-orb preview-orb-b" />
-
-            <div className="preview-top">
-              <span className="preview-badge">LIVE PREVIEW</span>
-              <span className="preview-badge muted">
-                {project?.stack?.[0] ?? "Next.js"}
-              </span>
-            </div>
-
-            <div className="preview-hero">
-              <p className="preview-kicker">
-                {project?.projectName ?? "Generated project"}
-              </p>
-              <h3>{project?.tagline ?? "Your app will appear here."}</h3>
-              <p className="preview-copy">
-                {project?.description ??
-                  "Generate a project to see the visible app preview."}
-              </p>
-            </div>
-
-            <div className="preview-hud">
-              <div className="preview-hud-top">
-                <span className="preview-mini">{preview.badge}</span>
-                <span className="preview-mini muted">Preview mode</span>
+          <div className={`app-preview ${previewConfig.accent}`}>
+            {project ? (
+              <iframe
+                title="Generated app preview"
+                srcDoc={previewSrcDoc}
+                className="preview-iframe"
+              />
+            ) : (
+              <div className="preview-empty">
+                Generate a project to see the live preview.
               </div>
-
-              <div className="preview-hud-center">
-                <div className="preview-arrow">{preview.arrow}</div>
-                <div className="preview-distance">{preview.distance}m</div>
-              </div>
-
-              <div className="preview-actions">
-                <button className="preview-btn primary" type="button">
-                  Open mode
-                </button>
-                <button className="preview-btn" type="button">
-                  Refine UI
-                </button>
-                <button className="preview-btn" type="button">
-                  Export build
-                </button>
-              </div>
-
-              <div className="preview-chip-row">
-                {preview.chips.map((chip) => (
-                  <span key={chip} className="preview-chip">
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
+      </section>
+
+      <section className="panel chat-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Chat AI</h2>
+            <p className="panel-subtitle">
+              Ask the AI to improve the current project
+            </p>
+          </div>
+        </div>
+
+        <div className="chat-box">
+          {chatMessages.map((msg, index) => (
+            <div key={`${msg.role}-${index}`} className={`bubble ${msg.role}`}>
+              {msg.content}
+            </div>
+          ))}
+          {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
+          <div className="last-anchor" />
+        </div>
+
+        <div className="chat-presets">
+          <button className="preset" type="button" onClick={() => sendChat("Make this more minimal and premium.")}>
+            Minimal
+          </button>
+          <button className="preset" type="button" onClick={() => sendChat("Add a camera mode and AI scan flow.")}>
+            Camera
+          </button>
+          <button className="preset" type="button" onClick={() => sendChat("Turn this into a smart glasses assistant app.")}>
+            Assistant
+          </button>
+        </div>
+
+        <div className="chat-row">
+          <input
+            className="chat-input"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Ask the AI what to improve..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void sendChat();
+              }
+            }}
+          />
+          <button className="button primary" type="button" onClick={() => void sendChat()}>
+            Send
+          </button>
+        </div>
+
+        {chatError ? <p className="message error">{chatError}</p> : null}
       </section>
 
       <section className="panel notes">
@@ -504,11 +786,9 @@ export default function Page() {
         </div>
 
         <ul className="notes-list">
-          {(project?.notes ?? ["Generate a project to see the notes."]).map(
-            (note) => (
-              <li key={note}>{note}</li>
-            )
-          )}
+          {(project?.notes ?? ["Generate a project to see the notes."]).map((note) => (
+            <li key={note}>{note}</li>
+          ))}
         </ul>
 
         {showManifest && project ? (
@@ -531,8 +811,7 @@ export default function Page() {
           min-height: 100%;
           background: #05070d;
           color: #fff;
-          font-family: Inter, ui-sans-serif, system-ui, -apple-system,
-            BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         body {
@@ -540,7 +819,8 @@ export default function Page() {
         }
 
         button,
-        textarea {
+        textarea,
+        input {
           font: inherit;
         }
 
@@ -549,16 +829,8 @@ export default function Page() {
           min-height: 100vh;
           padding: 24px;
           background:
-            radial-gradient(
-              circle at top,
-              rgba(98, 143, 255, 0.18),
-              transparent 30%
-            ),
-            radial-gradient(
-              circle at bottom right,
-              rgba(83, 240, 176, 0.12),
-              transparent 28%
-            ),
+            radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(83, 240, 176, 0.12), transparent 28%),
             #05070d;
         }
 
@@ -603,7 +875,8 @@ export default function Page() {
         .toolbar,
         .stats,
         .grid,
-        .notes {
+        .notes,
+        .chat-panel {
           position: relative;
           z-index: 1;
           max-width: 1400px;
@@ -707,7 +980,7 @@ export default function Page() {
         .toolbar-actions,
         .preset-row,
         .chip-row,
-        .preview-chip-row {
+        .chat-presets {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
@@ -935,224 +1208,89 @@ export default function Page() {
         }
 
         .app-preview {
-          position: relative;
           min-height: 640px;
-          padding: 20px;
           border-radius: 24px;
           overflow: hidden;
-          background:
-            radial-gradient(
-              circle at 30% 20%,
-              rgba(134, 200, 255, 0.16),
-              transparent 24%
-            ),
-            radial-gradient(
-              circle at 80% 25%,
-              rgba(83, 240, 176, 0.12),
-              transparent 22%
-            ),
-            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
           border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .app-preview.camera {
           background:
-            radial-gradient(
-              circle at 30% 20%,
-              rgba(134, 200, 255, 0.2),
-              transparent 24%
-            ),
-            radial-gradient(
-              circle at 75% 30%,
-              rgba(83, 240, 176, 0.16),
-              transparent 22%
-            ),
+            radial-gradient(circle at 30% 20%, rgba(98, 143, 255, 0.18), transparent 24%),
+            radial-gradient(circle at 80% 25%, rgba(83, 240, 176, 0.12), transparent 22%),
             linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
         }
 
-        .app-preview.assistant {
-          background:
-            radial-gradient(
-              circle at 35% 18%,
-              rgba(134, 200, 255, 0.18),
-              transparent 26%
-            ),
-            radial-gradient(
-              circle at 78% 30%,
-              rgba(255, 255, 255, 0.1),
-              transparent 22%
-            ),
-            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
+        .preview-iframe {
+          width: 100%;
+          height: 100%;
+          min-height: 640px;
+          border: 0;
+          display: block;
+          background: transparent;
         }
 
-        .app-preview.navigation {
-          background:
-            radial-gradient(
-              circle at 30% 20%,
-              rgba(98, 143, 255, 0.18),
-              transparent 24%
-            ),
-            radial-gradient(
-              circle at 80% 25%,
-              rgba(83, 240, 176, 0.12),
-              transparent 22%
-            ),
-            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
-        }
-
-        .preview-orb {
-          position: absolute;
-          border-radius: 999px;
-          filter: blur(40px);
-          pointer-events: none;
-        }
-
-        .preview-orb-a {
-          width: 180px;
-          height: 180px;
-          top: -30px;
-          left: -20px;
-          background: rgba(98, 143, 255, 0.18);
-        }
-
-        .preview-orb-b {
-          width: 220px;
-          height: 220px;
-          right: -50px;
-          bottom: -40px;
-          background: rgba(83, 240, 176, 0.14);
-        }
-
-        .preview-top {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-bottom: 18px;
-        }
-
-        .preview-badge,
-        .preview-btn,
-        .preview-chip {
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.06);
-          color: #fff;
-        }
-
-        .preview-badge {
-          padding: 8px 12px;
-          font-size: 12px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-        }
-
-        .preview-badge.muted {
-          color: rgba(255, 255, 255, 0.7);
-        }
-
-        .preview-hero {
-          position: relative;
-          z-index: 1;
-          max-width: 420px;
-          margin-bottom: 24px;
-        }
-
-        .preview-kicker {
-          margin: 0 0 10px;
-          color: #86c8ff;
-          font-size: 12px;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-        }
-
-        .preview-hero h3 {
-          margin: 0;
-          font-size: clamp(28px, 4vw, 44px);
-          line-height: 0.95;
-        }
-
-        .preview-copy {
-          margin: 12px 0 0;
-          color: rgba(255, 255, 255, 0.7);
-          line-height: 1.6;
-        }
-
-        .preview-hud {
-          position: relative;
-          z-index: 1;
-          margin-top: 24px;
-          padding: 18px;
-          border-radius: 22px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(18px);
-        }
-
-        .preview-hud-top {
-          display: flex;
-          justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 18px;
-        }
-
-        .preview-mini {
-          font-size: 11px;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.65);
-        }
-
-        .preview-mini.muted {
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .preview-hud-center {
+        .preview-empty {
+          min-height: 640px;
           display: grid;
-          justify-items: center;
+          place-items: center;
+          color: rgba(255, 255, 255, 0.68);
+          padding: 20px;
+          text-align: center;
+        }
+
+        .chat-panel {
+          padding: 20px;
+          border-radius: 24px;
+        }
+
+        .chat-box {
+          min-height: 220px;
+          max-height: 320px;
+          overflow-y: auto;
+          display: grid;
           gap: 10px;
-          padding: 14px 0 20px;
+          padding-right: 4px;
         }
 
-        .preview-arrow {
-          font-size: 84px;
-          line-height: 1;
-          font-weight: 800;
-          text-shadow: 0 0 24px rgba(134, 200, 255, 0.24);
+        .bubble {
+          max-width: 100%;
+          padding: 12px 14px;
+          border-radius: 16px;
+          line-height: 1.55;
+          white-space: pre-wrap;
+          word-break: break-word;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .preview-distance {
-          font-size: 40px;
-          font-weight: 800;
+        .bubble.user {
+          margin-left: auto;
+          background: rgba(134, 200, 255, 0.12);
         }
 
-        .preview-actions {
+        .bubble.assistant {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-row {
           display: flex;
           gap: 10px;
-          flex-wrap: wrap;
+          margin-top: 12px;
         }
 
-        .preview-btn {
-          padding: 10px 14px;
+        .chat-input {
+          flex: 1;
+          padding: 14px;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          color: #fff;
+          outline: none;
         }
 
-        .preview-btn.primary {
-          background: linear-gradient(135deg, #86c8ff, #53f0b0);
-          color: #04111f;
-          border: none;
-          font-weight: 700;
+        .chat-input:focus {
+          border-color: rgba(134, 200, 255, 0.55);
         }
 
         .preview-chip-row {
           margin-top: 14px;
-        }
-
-        .preview-chip {
-          padding: 8px 12px;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.8);
         }
 
         .notes {
@@ -1208,7 +1346,9 @@ export default function Page() {
             min-height: 420px;
           }
 
-          .app-preview {
+          .app-preview,
+          .preview-iframe,
+          .preview-empty {
             min-height: 520px;
           }
         }
@@ -1238,7 +1378,8 @@ export default function Page() {
             width: 100%;
           }
 
-          .preview-actions {
+          .preview-actions,
+          .chat-row {
             display: grid;
           }
 
@@ -1248,7 +1389,8 @@ export default function Page() {
 
           .panel,
           .toolbar,
-          .notes {
+          .notes,
+          .chat-panel {
             border-radius: 20px;
           }
         }
