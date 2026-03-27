@@ -25,6 +25,7 @@ type GenerateResponse = {
 };
 
 const starterPrompt = "make a navigation app with a glass overlay HUD";
+
 const promptPresets = [
   "make a navigation app with a glass overlay HUD",
   "make a smart glasses camera app",
@@ -41,6 +42,15 @@ function fileLanguage(path: string) {
   return "TXT";
 }
 
+function safeFileName(input: string) {
+  return (
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "project"
+  );
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -48,6 +58,52 @@ function downloadBlob(blob: Blob, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function getPreviewConfig(project: GeneratedProject | null) {
+  const name = project?.projectName?.toLowerCase() ?? "";
+
+  if (name.includes("camera")) {
+    return {
+      badge: "SCAN READY",
+      headline: "Camera-first assistant",
+      arrow: "↑",
+      distance: "12",
+      chips: ["AI scan", "Capture", "Analyze"],
+      accent: "camera",
+    };
+  }
+
+  if (name.includes("assistant")) {
+    return {
+      badge: "ASSISTANT ONLINE",
+      headline: "Wearable assistant",
+      arrow: "→",
+      distance: "0",
+      chips: ["Ask", "Reply", "Notes"],
+      accent: "assistant",
+    };
+  }
+
+  if (name.includes("navigation")) {
+    return {
+      badge: "ROUTE LOCKED",
+      headline: "Navigation HUD",
+      arrow: "→",
+      distance: "42",
+      chips: ["Route", "Recenter", "Voice"],
+      accent: "navigation",
+    };
+  }
+
+  return {
+    badge: "PREVIEW READY",
+    headline: project?.projectName ?? "Glass app preview",
+    arrow: "↑",
+    distance: "24",
+    chips: ["Open", "Refine", "Export"],
+    accent: "default",
+  };
 }
 
 export default function Page() {
@@ -67,8 +123,14 @@ export default function Page() {
 
   const selectedFile = useMemo(() => {
     if (!project) return null;
-    return project.files.find((file) => file.path === selectedPath) ?? project.files[0] ?? null;
+    return (
+      project.files.find((file) => file.path === selectedPath) ??
+      project.files[0] ??
+      null
+    );
   }, [project, selectedPath]);
+
+  const preview = useMemo(() => getPreviewConfig(project), [project]);
 
   const buildStatus =
     loading
@@ -148,7 +210,7 @@ export default function Page() {
     );
 
     const blob = await zip.generateAsync({ type: "blob" });
-    downloadBlob(blob, `${project.projectName.replace(/\s+/g, "-").toLowerCase()}.zip`);
+    downloadBlob(blob, `${safeFileName(project.projectName)}.zip`);
   }
 
   function downloadManifest() {
@@ -158,11 +220,12 @@ export default function Page() {
       type: "application/json",
     });
 
-    downloadBlob(blob, "project-manifest.json");
+    downloadBlob(blob, `${safeFileName(project.projectName)}-manifest.json`);
   }
 
   async function copyCode() {
     if (!selectedFile) return;
+
     await navigator.clipboard.writeText(selectedFile.content);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
@@ -183,7 +246,8 @@ export default function Page() {
           <p className="eyebrow">AI APP GENERATOR</p>
           <h1>Build real projects from a prompt</h1>
           <p className="subtext">
-            Generate a project, inspect the files, preview the code, and download the whole app as a ZIP.
+            Generate a project, inspect the files, preview the code, see the
+            app, and download the whole app as a ZIP.
           </p>
         </div>
 
@@ -202,20 +266,39 @@ export default function Page() {
         />
 
         <div className="toolbar-actions">
-          <button className="button primary" onClick={generateProject} type="button">
+          <button
+            className="button primary"
+            onClick={generateProject}
+            type="button"
+          >
             {loading ? "Generating..." : "Generate project"}
           </button>
-          <button className="button" onClick={downloadProjectZip} type="button" disabled={!project}>
+          <button
+            className="button"
+            onClick={downloadProjectZip}
+            type="button"
+            disabled={!project}
+          >
             Download ZIP
           </button>
-          <button className="button" onClick={downloadManifest} type="button" disabled={!project}>
+          <button
+            className="button"
+            onClick={downloadManifest}
+            type="button"
+            disabled={!project}
+          >
             Download JSON
           </button>
         </div>
 
         <div className="preset-row">
           {promptPresets.map((item) => (
-            <button key={item} className="preset" onClick={() => setPrompt(item)} type="button">
+            <button
+              key={item}
+              className="preset"
+              onClick={() => setPrompt(item)}
+              type="button"
+            >
               {item}
             </button>
           ))}
@@ -256,9 +339,15 @@ export default function Page() {
           </div>
 
           <div className="project-card">
-            <p className="project-title">{project?.projectName ?? "Generated project"}</p>
-            <p className="project-subtitle">{project?.tagline ?? "Generate a project to see it here."}</p>
-            <p className="project-copy">{project?.description ?? "Prompt your AI to create a full app."}</p>
+            <p className="project-title">
+              {project?.projectName ?? "Generated project"}
+            </p>
+            <p className="project-subtitle">
+              {project?.tagline ?? "Generate a project to see it here."}
+            </p>
+            <p className="project-copy">
+              {project?.description ?? "Prompt your AI to create a full app."}
+            </p>
           </div>
 
           <div className="file-list">
@@ -266,7 +355,9 @@ export default function Page() {
               project.files.map((file) => (
                 <button
                   key={file.path}
-                  className={`file-item ${selectedPath === file.path ? "active" : ""}`}
+                  className={`file-item ${
+                    selectedPath === file.path ? "active" : ""
+                  }`}
                   onClick={() => setSelectedPath(file.path)}
                   type="button"
                 >
@@ -295,11 +386,18 @@ export default function Page() {
             <div>
               <h2>Code output</h2>
               <p className="panel-subtitle">
-                {selectedFile ? selectedFile.path : "Select a file to preview its code"}
+                {selectedFile
+                  ? selectedFile.path
+                  : "Select a file to preview its code"}
               </p>
             </div>
 
-            <button className="button" onClick={copyCode} type="button" disabled={!selectedFile}>
+            <button
+              className="button"
+              onClick={copyCode}
+              type="button"
+              disabled={!selectedFile}
+            >
               {copied ? "Copied" : "Copy code"}
             </button>
           </div>
@@ -307,17 +405,83 @@ export default function Page() {
           {selectedFile ? (
             <>
               <div className="code-meta">
-                <span className="code-pill">{fileLanguage(selectedFile.path)}</span>
+                <span className="code-pill">
+                  {fileLanguage(selectedFile.path)}
+                </span>
                 <span className="code-pill muted">{selectedFile.path}</span>
               </div>
 
               <pre className="code">{selectedCode}</pre>
             </>
           ) : (
-            <div className="empty-state code-empty">
-              No file selected yet.
-            </div>
+            <div className="empty-state code-empty">No file selected yet.</div>
           )}
+        </div>
+
+        <div className="panel preview">
+          <div className="panel-head">
+            <div>
+              <h2>App preview</h2>
+              <p className="panel-subtitle">
+                This shows the generated app as a visible preview
+              </p>
+            </div>
+          </div>
+
+          <div className={`app-preview ${preview.accent}`}>
+            <div className="preview-orb preview-orb-a" />
+            <div className="preview-orb preview-orb-b" />
+
+            <div className="preview-top">
+              <span className="preview-badge">LIVE PREVIEW</span>
+              <span className="preview-badge muted">
+                {project?.stack?.[0] ?? "Next.js"}
+              </span>
+            </div>
+
+            <div className="preview-hero">
+              <p className="preview-kicker">
+                {project?.projectName ?? "Generated project"}
+              </p>
+              <h3>{project?.tagline ?? "Your app will appear here."}</h3>
+              <p className="preview-copy">
+                {project?.description ??
+                  "Generate a project to see the visible app preview."}
+              </p>
+            </div>
+
+            <div className="preview-hud">
+              <div className="preview-hud-top">
+                <span className="preview-mini">{preview.badge}</span>
+                <span className="preview-mini muted">Preview mode</span>
+              </div>
+
+              <div className="preview-hud-center">
+                <div className="preview-arrow">{preview.arrow}</div>
+                <div className="preview-distance">{preview.distance}m</div>
+              </div>
+
+              <div className="preview-actions">
+                <button className="preview-btn primary" type="button">
+                  Open mode
+                </button>
+                <button className="preview-btn" type="button">
+                  Refine UI
+                </button>
+                <button className="preview-btn" type="button">
+                  Export build
+                </button>
+              </div>
+
+              <div className="preview-chip-row">
+                {preview.chips.map((chip) => (
+                  <span key={chip} className="preview-chip">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -330,23 +494,25 @@ export default function Page() {
             </p>
           </div>
 
-          <button className="button" onClick={() => setShowManifest((v) => !v)} type="button">
+          <button
+            className="button"
+            onClick={() => setShowManifest((v) => !v)}
+            type="button"
+          >
             {showManifest ? "Hide manifest" : "Show manifest"}
           </button>
         </div>
 
         <ul className="notes-list">
-          {(project?.notes ?? [
-            "Generate a project to see the notes.",
-          ]).map((note) => (
-            <li key={note}>{note}</li>
-          ))}
+          {(project?.notes ?? ["Generate a project to see the notes."]).map(
+            (note) => (
+              <li key={note}>{note}</li>
+            )
+          )}
         </ul>
 
         {showManifest && project ? (
-          <pre className="manifest">
-            {JSON.stringify(project, null, 2)}
-          </pre>
+          <pre className="manifest">{JSON.stringify(project, null, 2)}</pre>
         ) : null}
       </section>
 
@@ -365,7 +531,8 @@ export default function Page() {
           min-height: 100%;
           background: #05070d;
           color: #fff;
-          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+            BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         body {
@@ -382,8 +549,16 @@ export default function Page() {
           min-height: 100vh;
           padding: 24px;
           background:
-            radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
-            radial-gradient(circle at bottom right, rgba(83, 240, 176, 0.12), transparent 28%),
+            radial-gradient(
+              circle at top,
+              rgba(98, 143, 255, 0.18),
+              transparent 30%
+            ),
+            radial-gradient(
+              circle at bottom right,
+              rgba(83, 240, 176, 0.12),
+              transparent 28%
+            ),
             #05070d;
         }
 
@@ -531,7 +706,8 @@ export default function Page() {
 
         .toolbar-actions,
         .preset-row,
-        .chip-row {
+        .chip-row,
+        .preview-chip-row {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
@@ -543,7 +719,10 @@ export default function Page() {
 
         .preset,
         .button,
-        .chip {
+        .chip,
+        .preview-badge,
+        .preview-btn,
+        .preview-chip {
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.05);
           color: #fff;
@@ -602,7 +781,7 @@ export default function Page() {
 
         .grid {
           display: grid;
-          grid-template-columns: 0.9fr 1.1fr;
+          grid-template-columns: 0.8fr 1fr 1fr;
           gap: 18px;
         }
 
@@ -750,6 +929,232 @@ export default function Page() {
           line-height: 1.7;
         }
 
+        .preview {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .app-preview {
+          position: relative;
+          min-height: 640px;
+          padding: 20px;
+          border-radius: 24px;
+          overflow: hidden;
+          background:
+            radial-gradient(
+              circle at 30% 20%,
+              rgba(134, 200, 255, 0.16),
+              transparent 24%
+            ),
+            radial-gradient(
+              circle at 80% 25%,
+              rgba(83, 240, 176, 0.12),
+              transparent 22%
+            ),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .app-preview.camera {
+          background:
+            radial-gradient(
+              circle at 30% 20%,
+              rgba(134, 200, 255, 0.2),
+              transparent 24%
+            ),
+            radial-gradient(
+              circle at 75% 30%,
+              rgba(83, 240, 176, 0.16),
+              transparent 22%
+            ),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
+        }
+
+        .app-preview.assistant {
+          background:
+            radial-gradient(
+              circle at 35% 18%,
+              rgba(134, 200, 255, 0.18),
+              transparent 26%
+            ),
+            radial-gradient(
+              circle at 78% 30%,
+              rgba(255, 255, 255, 0.1),
+              transparent 22%
+            ),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
+        }
+
+        .app-preview.navigation {
+          background:
+            radial-gradient(
+              circle at 30% 20%,
+              rgba(98, 143, 255, 0.18),
+              transparent 24%
+            ),
+            radial-gradient(
+              circle at 80% 25%,
+              rgba(83, 240, 176, 0.12),
+              transparent 22%
+            ),
+            linear-gradient(180deg, rgba(10, 14, 24, 0.95), rgba(4, 7, 13, 0.98));
+        }
+
+        .preview-orb {
+          position: absolute;
+          border-radius: 999px;
+          filter: blur(40px);
+          pointer-events: none;
+        }
+
+        .preview-orb-a {
+          width: 180px;
+          height: 180px;
+          top: -30px;
+          left: -20px;
+          background: rgba(98, 143, 255, 0.18);
+        }
+
+        .preview-orb-b {
+          width: 220px;
+          height: 220px;
+          right: -50px;
+          bottom: -40px;
+          background: rgba(83, 240, 176, 0.14);
+        }
+
+        .preview-top {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 18px;
+        }
+
+        .preview-badge,
+        .preview-btn,
+        .preview-chip {
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.06);
+          color: #fff;
+        }
+
+        .preview-badge {
+          padding: 8px 12px;
+          font-size: 12px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        .preview-badge.muted {
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .preview-hero {
+          position: relative;
+          z-index: 1;
+          max-width: 420px;
+          margin-bottom: 24px;
+        }
+
+        .preview-kicker {
+          margin: 0 0 10px;
+          color: #86c8ff;
+          font-size: 12px;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+        }
+
+        .preview-hero h3 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 44px);
+          line-height: 0.95;
+        }
+
+        .preview-copy {
+          margin: 12px 0 0;
+          color: rgba(255, 255, 255, 0.7);
+          line-height: 1.6;
+        }
+
+        .preview-hud {
+          position: relative;
+          z-index: 1;
+          margin-top: 24px;
+          padding: 18px;
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(18px);
+        }
+
+        .preview-hud-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 18px;
+        }
+
+        .preview-mini {
+          font-size: 11px;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.65);
+        }
+
+        .preview-mini.muted {
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .preview-hud-center {
+          display: grid;
+          justify-items: center;
+          gap: 10px;
+          padding: 14px 0 20px;
+        }
+
+        .preview-arrow {
+          font-size: 84px;
+          line-height: 1;
+          font-weight: 800;
+          text-shadow: 0 0 24px rgba(134, 200, 255, 0.24);
+        }
+
+        .preview-distance {
+          font-size: 40px;
+          font-weight: 800;
+        }
+
+        .preview-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .preview-btn {
+          padding: 10px 14px;
+        }
+
+        .preview-btn.primary {
+          background: linear-gradient(135deg, #86c8ff, #53f0b0);
+          color: #04111f;
+          border: none;
+          font-weight: 700;
+        }
+
+        .preview-chip-row {
+          margin-top: 14px;
+        }
+
+        .preview-chip {
+          padding: 8px 12px;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+        }
+
         .notes {
           padding: 20px;
           border-radius: 24px;
@@ -794,14 +1199,17 @@ export default function Page() {
           }
         }
 
-        @media (max-width: 1100px) {
-          .grid,
-          .stats {
+        @media (max-width: 1200px) {
+          .grid {
             grid-template-columns: 1fr;
           }
 
           .code {
             min-height: 420px;
+          }
+
+          .app-preview {
+            min-height: 520px;
           }
         }
 
@@ -827,6 +1235,14 @@ export default function Page() {
           .button,
           .preset,
           .stat-card {
+            width: 100%;
+          }
+
+          .preview-actions {
+            display: grid;
+          }
+
+          .preview-btn {
             width: 100%;
           }
 
