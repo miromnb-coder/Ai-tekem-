@@ -52,7 +52,7 @@ const starterChat: ChatMessage[] = [
   {
     role: "assistant",
     content:
-      "I am ready. Ask me to build, improve, or explain the app you are making.",
+      "I am ready. Ask me to build, improve, or simplify the app you are making.",
   },
 ];
 
@@ -175,6 +175,7 @@ export default function Page() {
       }
 
       const reply = typeof data?.reply === "string" ? data.reply : "";
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -201,14 +202,15 @@ export default function Page() {
     <main className="shell">
       <div className="orb orb-a" />
       <div className="orb orb-b" />
+      <div className="noise" />
 
       <section className="hero">
         <div>
           <p className="eyebrow">HALO AI APP BUILDER</p>
-          <h1>Build apps and chat with the AI</h1>
+          <h1>Build apps from prompts</h1>
           <p className="subtext">
-            Turn a prompt into a blueprint, then talk to the AI to refine it,
-            simplify it, or extend it into something bigger.
+            Turn an idea into a structured blueprint for HUD, features, and
+            actions, then refine it by chatting with the AI.
           </p>
         </div>
 
@@ -232,10 +234,12 @@ export default function Page() {
       </section>
 
       <section className="grid">
-        <div className="panel">
+        <div className="panel panel-left">
           <div className="panel-head">
-            <h2>Prompt</h2>
-            <span className="mini-label">type or tap a preset</span>
+            <div>
+              <h2>Prompt</h2>
+              <p className="panel-subtitle">Type or tap a preset</p>
+            </div>
           </div>
 
           <textarea
@@ -258,9 +262,12 @@ export default function Page() {
           {buildWarning ? <p className="message warn">{buildWarning}</p> : null}
         </div>
 
-        <div className="panel">
+        <div className="panel panel-right">
           <div className="panel-head">
-            <h2>Generated blueprint</h2>
+            <div>
+              <h2>Generated blueprint</h2>
+              <p className="panel-subtitle">AI output and preview</p>
+            </div>
             <span className={`badge ${buildSource}`}>
               {buildSource === "groq"
                 ? "Groq"
@@ -321,10 +328,12 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="panel full">
+        <div className="panel panel-chat">
           <div className="panel-head">
-            <h2>Talk to the AI</h2>
-            <span className="mini-label">chat history is kept here</span>
+            <div>
+              <h2>Talk to the AI</h2>
+              <p className="panel-subtitle">Refine the app in conversation</p>
+            </div>
           </div>
 
           <div className="chat-box">
@@ -391,9 +400,12 @@ export default function Page() {
           {chatError ? <p className="message error">{chatError}</p> : null}
         </div>
 
-        <div className="panel full">
+        <div className="panel panel-json">
           <div className="panel-head">
-            <h2>Raw JSON</h2>
+            <div>
+              <h2>Raw JSON</h2>
+              <p className="panel-subtitle">Copy-ready output</p>
+            </div>
             <span className="mini-label">export-ready</span>
           </div>
           <pre className="pre">{JSON.stringify(blueprint, null, 2)}</pre>
@@ -434,16 +446,8 @@ export default function Page() {
           min-height: 100vh;
           padding: 24px;
           background:
-            radial-gradient(
-              circle at top,
-              rgba(98, 143, 255, 0.18),
-              transparent 32%
-            ),
-            radial-gradient(
-              circle at bottom right,
-              rgba(83, 240, 176, 0.12),
-              transparent 28%
-            ),
+            radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(83, 240, 176, 0.12), transparent 28%),
             #05070d;
           overflow: hidden;
         }
@@ -453,7 +457,7 @@ export default function Page() {
           z-index: 0;
           filter: blur(50px);
           pointer-events: none;
-          opacity: 0.8;
+          opacity: 0.75;
         }
 
         .orb-a {
@@ -472,12 +476,25 @@ export default function Page() {
           background: rgba(83, 240, 176, 0.12);
         }
 
+        .noise {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          opacity: 0.08;
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+          background-size: 36px 36px;
+          mask-image: radial-gradient(circle at center, black 44%, transparent 100%);
+          pointer-events: none;
+        }
+
         .hero,
         .quick-prompts,
         .grid {
           position: relative;
           z-index: 1;
-          max-width: 1280px;
+          max-width: 1320px;
           margin: 0 auto;
         }
 
@@ -582,13 +599,21 @@ export default function Page() {
         .panel {
           padding: 20px;
           border-radius: 24px;
-          background: rgba(12, 16, 28, 0.88);
+          background: rgba(12, 16, 28, 0.9);
           border: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
           backdrop-filter: blur(18px);
+          min-width: 0;
         }
 
-        .full {
+        .panel-left,
+        .panel-right,
+        .panel-chat {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .panel-json {
           grid-column: 1 / -1;
         }
 
@@ -604,6 +629,12 @@ export default function Page() {
         .panel-head h2 {
           margin: 0;
           font-size: 18px;
+        }
+
+        .panel-subtitle {
+          margin: 6px 0 0;
+          color: rgba(255, 255, 255, 0.55);
+          font-size: 13px;
         }
 
         .mini-label {
@@ -836,9 +867,13 @@ export default function Page() {
           }
         }
 
-        @media (max-width: 860px) {
+        @media (max-width: 920px) {
           .grid {
             grid-template-columns: 1fr;
+          }
+
+          .panel-json {
+            grid-column: auto;
           }
 
           .summary-grid {
@@ -853,9 +888,34 @@ export default function Page() {
             width: 100%;
             justify-content: center;
           }
+        }
+
+        @media (max-width: 640px) {
+          .shell {
+            padding: 16px;
+          }
 
           .panel {
-            padding: 18px;
+            padding: 16px;
+            border-radius: 20px;
+          }
+
+          .quick-prompts {
+            gap: 8px;
+          }
+
+          .chip {
+            width: 100%;
+            text-align: left;
+          }
+
+          .button,
+          .chat-input {
+            width: 100%;
+          }
+
+          .chat-row {
+            display: grid;
           }
         }
       `}</style>
