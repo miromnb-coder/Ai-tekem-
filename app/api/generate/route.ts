@@ -19,125 +19,114 @@ type GeneratedProject = {
   files: ProjectFile[];
 };
 
-type Theme = {
-  projectName: string;
-  description: string;
-  tagline: string;
-  headline: string;
-  subtitle: string;
-  hudLabel: string;
-  hudDirection: "left" | "right" | "up" | "down";
-  hudDistance: number;
-  actions: [string, string, string];
-  notes: string[];
-};
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9]+/g)
-    .filter(Boolean)
-    .join("-")
-    .slice(0, 40);
-}
-
-function detectTheme(prompt: string): Theme {
+function makeProject(prompt: string): GeneratedProject {
   const lower = prompt.toLowerCase();
 
-  if (lower.includes("camera") || lower.includes("scan")) {
-    return {
-      projectName: "Halo Camera",
-      description: "A camera-first smart glasses app with scan and AI assist.",
-      tagline: "See, scan, and understand faster.",
-      headline: "Camera-first AR assistant",
-      subtitle: "A clean overlay for scanning scenes, capturing moments, and getting AI help.",
-      hudLabel: "Scan ready",
-      hudDirection: "up",
-      hudDistance: 12,
-      actions: ["Scan scene", "Capture frame", "Ask AI"],
-      notes: ["Designed for quick capture.", "HUD stays minimal during camera use.", "AI route can be added later."],
-    };
+  const isCamera = lower.includes("camera") || lower.includes("scan");
+  const isAssistant =
+    lower.includes("assistant") || lower.includes("voice") || lower.includes("chat");
+  const isNavigation =
+    lower.includes("navigation") || lower.includes("route") || lower.includes("hud");
+
+  let projectName = "Halo Glass App";
+  let description = "A premium smart-glasses app starter with a glass overlay.";
+  let tagline = "Clean overlay. Fast decisions.";
+  let headline = "Glass overlay app";
+  let subtitle = "A polished starter that can become navigation, assistant, or scan mode.";
+  let hudLabel = "Preview ready";
+  let hudDirection: "left" | "right" | "up" | "down" = "up";
+  let hudDistance = 24;
+  let actions = ["Open mode", "Refine UI", "Export build"];
+  let notes = [
+    "Use this as a base template.",
+    "Replace the center HUD with your app logic.",
+    "You can add AI later.",
+  ];
+
+  if (isCamera) {
+    projectName = "Halo Camera";
+    description = "A camera-first smart glasses app with scan and AI assist.";
+    tagline = "See, scan, and understand faster.";
+    headline = "Camera-first AR assistant";
+    subtitle = "A clean overlay for scanning scenes, capturing moments, and getting AI help.";
+    hudLabel = "Scan ready";
+    hudDirection = "up";
+    hudDistance = 12;
+    actions = ["Scan scene", "Capture frame", "Ask AI"];
+    notes = [
+      "Designed for quick capture.",
+      "HUD stays minimal during camera use.",
+      "Great base for image AI later.",
+    ];
+  } else if (isAssistant) {
+    projectName = "Halo Assistant";
+    description = "A conversational smart glasses assistant with text and quick actions.";
+    tagline = "Talk naturally. Get useful answers.";
+    headline = "Wearable assistant";
+    subtitle = "Built for quick replies, short prompts, and an always-visible HUD.";
+    hudLabel = "Assistant online";
+    hudDirection = "right";
+    hudDistance = 0;
+    actions = ["Ask question", "Quick reply", "Open notes"];
+    notes = [
+      "Conversation is the main surface.",
+      "Keep replies short on the glasses.",
+      "Works well with chat AI later.",
+    ];
+  } else if (isNavigation) {
+    projectName = "Halo Navigation";
+    description = "A minimal navigation HUD with direction and distance.";
+    tagline = "Small overlay. Clear guidance.";
+    headline = "Navigation HUD";
+    subtitle = "One arrow, one distance, one clear next action.";
+    hudLabel = "Route locked";
+    hudDirection = "right";
+    hudDistance = 42;
+    actions = ["Start route", "Recenter", "Voice guide"];
+    notes = [
+      "Best for minimal glasses UI.",
+      "Keep text small and readable.",
+      "Direction should update live.",
+    ];
   }
 
-  if (lower.includes("assistant") || lower.includes("voice") || lower.includes("chat")) {
-    return {
-      projectName: "Halo Assistant",
-      description: "A conversational smart glasses assistant with text and quick actions.",
-      tagline: "Talk naturally. Get useful answers.",
-      headline: "Wearable assistant",
-      subtitle: "Built for quick replies, short prompts, and an always-visible HUD.",
-      hudLabel: "Assistant online",
-      hudDirection: "right",
-      hudDistance: 0,
-      actions: ["Ask question", "Quick reply", "Open notes"],
-      notes: ["Conversation is the main surface.", "Keep replies short on the glasses.", "Works well with a chat API later."],
-    };
-  }
-
-  if (lower.includes("navigation") || lower.includes("route") || lower.includes("hud")) {
-    return {
-      projectName: "Halo Navigation",
-      description: "A minimal navigation HUD with direction and distance.",
-      tagline: "Small overlay. Clear guidance.",
-      headline: "Navigation HUD",
-      subtitle: "One arrow, one distance, one clear next action.",
-      hudLabel: "Route locked",
-      hudDirection: "right",
-      hudDistance: 42,
-      actions: ["Start route", "Recenter", "Voice guide"],
-      notes: ["Best for minimal glasses UI.", "Keep text small and readable.", "Direction should update live."],
-    };
-  }
-
-  return {
-    projectName: "Halo Glass App",
-    description: "A premium smart-glasses app starter with a glass overlay and AI-ready structure.",
-    tagline: "Clean overlay. Fast decisions.",
-    headline: "Glass overlay app",
-    subtitle: "A polished starter that can become navigation, assistant, or scan mode.",
-    hudLabel: "Preview ready",
-    hudDirection: "up",
-    hudDistance: 24,
-    actions: ["Open mode", "Refine UI", "Export build"],
-    notes: ["Use this as a base template.", "Replace the center HUD with your app logic.", "Swap the AI route to Groq when needed."],
-  };
-}
-
-function buildPackageJson(theme: Theme) {
-  return JSON.stringify(
+  const files: ProjectFile[] = [
     {
-      name: slugify(theme.projectName) || "halo-glass-app",
-      version: "1.0.0",
-      private: true,
-      scripts: {
-        dev: "next dev",
-        build: "next build",
-        start: "next start",
-      },
-      dependencies: {
-        next: "^15.5.14",
-        react: "^19.1.0",
-        "react-dom": "^19.1.0",
-      },
-      devDependencies: {
-        typescript: "^5.7.2",
-        "@types/node": "^22.10.2",
-        "@types/react": "^19.1.0",
-        "@types/react-dom": "^19.1.0",
-      },
+      path: "package.json",
+      content: JSON.stringify(
+        {
+          name: projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          version: "1.0.0",
+          private: true,
+          scripts: {
+            dev: "next dev",
+            build: "next build",
+            start: "next start",
+          },
+          dependencies: {
+            next: "^15.5.14",
+            react: "^19.1.0",
+            "react-dom": "^19.1.0",
+          },
+          devDependencies: {
+            typescript: "^5.7.2",
+            "@types/node": "^22.10.2",
+            "@types/react": "^19.1.0",
+            "@types/react-dom": "^19.1.0",
+          },
+        },
+        null,
+        2
+      ),
     },
-    null,
-    2
-  );
-}
-
-function buildLayoutTsx(theme: Theme) {
-  return `import type { Metadata } from "next";
+    {
+      path: "app/layout.tsx",
+      content: `import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: ${JSON.stringify(theme.projectName)},
-  description: ${JSON.stringify(theme.description)},
+  title: ${JSON.stringify(projectName)},
+  description: ${JSON.stringify(description)},
 };
 
 export default function RootLayout({
@@ -150,21 +139,21 @@ export default function RootLayout({
       <body>{children}</body>
     </html>
   );
-}`;
-}
-
-function buildPageTsx(theme: Theme) {
-  return `"use client";
+}`,
+    },
+    {
+      path: "app/page.tsx",
+      content: `"use client";
 
 import { useEffect, useState } from "react";
 
-const APP_NAME = ${JSON.stringify(theme.projectName)};
-const HEADLINE = ${JSON.stringify(theme.headline)};
-const SUBTITLE = ${JSON.stringify(theme.subtitle)};
-const HUD_LABEL = ${JSON.stringify(theme.hudLabel)};
-const HUD_DIRECTION = ${JSON.stringify(theme.hudDirection)};
-const START_DISTANCE = ${theme.hudDistance};
-const ACTIONS = ${JSON.stringify(theme.actions)};
+const APP_NAME = ${JSON.stringify(projectName)};
+const HEADLINE = ${JSON.stringify(headline)};
+const SUBTITLE = ${JSON.stringify(subtitle)};
+const HUD_LABEL = ${JSON.stringify(hudLabel)};
+const HUD_DIRECTION = ${JSON.stringify(hudDirection)};
+const START_DISTANCE = ${hudDistance};
+const ACTIONS = ${JSON.stringify(actions)};
 
 const ARROWS = {
   left: "←",
@@ -234,11 +223,11 @@ export default function Page() {
       </section>
     </main>
   );
-}`;
-}
-
-function buildGlobalsCss() {
-  return `:root {
+}`,
+    },
+    {
+      path: "app/globals.css",
+      content: `:root {
   color-scheme: dark;
 }
 
@@ -440,16 +429,13 @@ h1 {
     width: 100%;
     text-align: center;
   }
-}`;
-}
-
-function buildApiRouteTs(theme: Theme) {
-  return `import { NextResponse } from "next/server";
+}`,
+    },
+    {
+      path: "app/api/ai/route.ts",
+      content: `import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-
-const APP_NAME = ${JSON.stringify(theme.projectName)};
-const HUD_LABEL = ${JSON.stringify(theme.hudLabel)};
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -457,16 +443,16 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     reply: prompt
-      ? \`For \${APP_NAME}, focus on \${HUD_LABEL.toLowerCase()} and keep the UI minimal. You asked: \${prompt}\`
-      : \`Start with \${APP_NAME}. Keep the HUD minimal and one action per screen.\`,
+      ? \`For ${projectName}, focus on ${hudLabel.toLowerCase()} and keep the UI minimal. You asked: \${prompt}\`
+      : \`Start with ${projectName}. Keep the HUD minimal and one action per screen.\`,
   });
-}`;
-}
+}`,
+    },
+    {
+      path: "README.md",
+      content: `# ${projectName}
 
-function buildReadme(theme: Theme) {
-  return `# ${theme.projectName}
-
-${theme.description}
+${description}
 
 ## Run locally
 
@@ -475,136 +461,34 @@ npm install
 npm run dev
 \`\`\`
 
-## What is inside
-
-- \`app/page.tsx\` for the visual app
-- \`app/globals.css\` for the glass overlay styling
-- \`app/api/ai/route.ts\` for local AI replies
-- \`package.json\` for the Next.js setup
-
 ## Notes
 
-${theme.notes.map((note) => `- ${note}`).join("\n")}
-`;
-}
+${notes.map((note) => `- ${note}`).join("\n")}
+`,
+    },
+  ];
 
-function createFallbackProject(prompt: string): GeneratedProject {
-  const theme = detectTheme(prompt);
   return {
-    projectName: theme.projectName,
-    description: theme.description,
-    tagline: theme.tagline,
+    projectName,
+    description,
+    tagline,
     stack: ["Next.js", "TypeScript", "React"],
     installCommand: "npm install",
     runCommand: "npm run dev",
-    notes: theme.notes,
-    files: [
-      { path: "package.json", content: buildPackageJson(theme) },
-      { path: "app/layout.tsx", content: buildLayoutTsx(theme) },
-      { path: "app/page.tsx", content: buildPageTsx(theme) },
-      { path: "app/globals.css", content: buildGlobalsCss() },
-      { path: "app/api/ai/route.ts", content: buildApiRouteTs(theme) },
-      { path: "README.md", content: buildReadme(theme) },
-    ],
+    notes,
+    files,
   };
 }
 
-function extractJsonObject(text: string) {
-  const trimmed = text.trim();
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first === -1 || last === -1 || last <= first) return null;
-  return trimmed.slice(first, last + 1);
-}
-
-async function generateWithGroq(prompt: string, theme: Theme) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return null;
-
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert AI app generator. Return ONLY valid JSON, no markdown, no backticks, no explanation. The JSON must match this shape exactly: { projectName: string, description: string, tagline: string, stack: string[], installCommand: string, runCommand: string, notes: string[], files: [{ path: string, content: string }] }. Include at least these files: package.json, app/layout.tsx, app/page.tsx, app/globals.css, app/api/ai/route.ts, README.md. Make the code valid and copy-paste ready.",
-        },
-        {
-          role: "user",
-          content: [
-            `Build a downloadable app project from this prompt: ${prompt}`,
-            "",
-            "Theme hints:",
-            `- projectName: ${theme.projectName}`,
-            `- description: ${theme.description}`,
-            `- tagline: ${theme.tagline}`,
-            `- headline: ${theme.headline}`,
-            `- hudLabel: ${theme.hudLabel}`,
-            `- hudDirection: ${theme.hudDirection}`,
-            `- hudDistance: ${theme.hudDistance}`,
-            `- actions: ${theme.actions.join(", ")}`,
-            "",
-            "Keep the project clean, premium, and realistic.",
-          ].join("\n"),
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) return null;
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content ?? "";
-  const jsonText = extractJsonObject(content);
-  if (!jsonText) return null;
-
-  try {
-    const parsed = JSON.parse(jsonText) as GeneratedProject;
-    if (!parsed || !Array.isArray(parsed.files) || !parsed.files.length) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { prompt?: string };
-  const prompt = (body.prompt ?? "").trim();
+  const body = await req.json().catch(() => ({}));
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
 
-  if (!prompt) {
-    const fallback = createFallbackProject("smart glasses app");
-    return NextResponse.json({
-      project: fallback,
-      source: "fallback",
-      warning: "Prompt is empty",
-    });
-  }
+  const project = makeProject(prompt);
 
-  const theme = detectTheme(prompt);
-
-  try {
-    const groqProject = await generateWithGroq(prompt, theme);
-    if (groqProject) {
-      return NextResponse.json({
-        project: groqProject,
-        source: "groq",
-      });
-    }
-  } catch {
-    // ignore and fall back
-  }
-
-  const fallback = createFallbackProject(prompt);
   return NextResponse.json({
-    project: fallback,
+    project,
     source: "fallback",
-    warning: "Using fallback generator",
+    warning: prompt ? undefined : "Prompt was empty, using default project.",
   });
 }
