@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ProjectFile = {
   path: string;
@@ -261,7 +261,7 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
       color: rgba(255,255,255,0.62);
       margin-left: 6px;
     }
-    .rows, .footer {
+    .rows {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -333,9 +333,15 @@ export default function Page() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
 
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     setSelectedPath(project?.files?.[0]?.path ?? "");
   }, [project]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
 
   const selectedFile = useMemo(() => {
     if (!project) return null;
@@ -535,7 +541,9 @@ export default function Page() {
               Start with an idea and turn it into a structured project.
             </p>
           </div>
-          <div className="prompt-count">{project ? `${fileCount} files` : "No project yet"}</div>
+          <div className="prompt-count">
+            {project ? `${fileCount} files` : "No project yet"}
+          </div>
         </div>
 
         <textarea
@@ -636,9 +644,7 @@ export default function Page() {
                 project.files.map((file) => (
                   <button
                     key={file.path}
-                    className={`file-item ${
-                      selectedPath === file.path ? "active" : ""
-                    }`}
+                    className={`file-item ${selectedPath === file.path ? "active" : ""}`}
                     onClick={() => setSelectedPath(file.path)}
                     type="button"
                   >
@@ -667,9 +673,7 @@ export default function Page() {
               <div>
                 <h2>Code output</h2>
                 <p className="panel-subtitle">
-                  {selectedFile
-                    ? selectedFile.path
-                    : "Select a file to preview its code"}
+                  {selectedFile ? selectedFile.path : "Select a file to preview its code"}
                 </p>
               </div>
 
@@ -748,7 +752,7 @@ export default function Page() {
                 </div>
               ))}
               {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
-              <div className="chat-anchor" />
+              <div ref={chatBottomRef} />
             </div>
 
             <div className="chat-presets">
