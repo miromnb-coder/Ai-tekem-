@@ -35,8 +35,9 @@ type Theme = {
 function slugify(value: string) {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean)
+    .join("-")
     .slice(0, 40);
 }
 
@@ -49,17 +50,12 @@ function detectTheme(prompt: string): Theme {
       description: "A camera-first smart glasses app with scan and AI assist.",
       tagline: "See, scan, and understand faster.",
       headline: "Camera-first AR assistant",
-      subtitle:
-        "A clean overlay for scanning scenes, capturing moments, and getting AI help.",
+      subtitle: "A clean overlay for scanning scenes, capturing moments, and getting AI help.",
       hudLabel: "Scan ready",
       hudDirection: "up",
       hudDistance: 12,
       actions: ["Scan scene", "Capture frame", "Ask AI"],
-      notes: [
-        "Designed for quick capture.",
-        "HUD stays minimal during camera use.",
-        "AI route can be added later.",
-      ],
+      notes: ["Designed for quick capture.", "HUD stays minimal during camera use.", "AI route can be added later."],
     };
   }
 
@@ -69,17 +65,12 @@ function detectTheme(prompt: string): Theme {
       description: "A conversational smart glasses assistant with text and quick actions.",
       tagline: "Talk naturally. Get useful answers.",
       headline: "Wearable assistant",
-      subtitle:
-        "Built for quick replies, short prompts, and an always-visible HUD.",
+      subtitle: "Built for quick replies, short prompts, and an always-visible HUD.",
       hudLabel: "Assistant online",
       hudDirection: "right",
       hudDistance: 0,
       actions: ["Ask question", "Quick reply", "Open notes"],
-      notes: [
-        "Conversation is the main surface.",
-        "Keep replies short on the glasses.",
-        "Works well with a chat API later.",
-      ],
+      notes: ["Conversation is the main surface.", "Keep replies short on the glasses.", "Works well with a chat API later."],
     };
   }
 
@@ -94,31 +85,21 @@ function detectTheme(prompt: string): Theme {
       hudDirection: "right",
       hudDistance: 42,
       actions: ["Start route", "Recenter", "Voice guide"],
-      notes: [
-        "Best for minimal glasses UI.",
-        "Keep text small and readable.",
-        "Direction should update live.",
-      ],
+      notes: ["Best for minimal glasses UI.", "Keep text small and readable.", "Direction should update live."],
     };
   }
 
   return {
     projectName: "Halo Glass App",
-    description:
-      "A premium smart-glasses app starter with a glass overlay and AI-ready structure.",
+    description: "A premium smart-glasses app starter with a glass overlay and AI-ready structure.",
     tagline: "Clean overlay. Fast decisions.",
     headline: "Glass overlay app",
-    subtitle:
-      "A polished starter that can become navigation, assistant, or scan mode.",
+    subtitle: "A polished starter that can become navigation, assistant, or scan mode.",
     hudLabel: "Preview ready",
     hudDirection: "up",
     hudDistance: 24,
     actions: ["Open mode", "Refine UI", "Export build"],
-    notes: [
-      "Use this as a base template.",
-      "Replace the center HUD with your app logic.",
-      "Swap the AI route to Groq when needed.",
-    ],
+    notes: ["Use this as a base template.", "Replace the center HUD with your app logic.", "Swap the AI route to Groq when needed."],
   };
 }
 
@@ -530,15 +511,6 @@ function createFallbackProject(prompt: string): GeneratedProject {
 
 function extractJsonObject(text: string) {
   const trimmed = text.trim();
-
-  if (trimmed.startsWith("```")) {
-    const withoutFence = trimmed
-      .replace(/^```(?:json)?/i, "")
-      .replace(/```$/i, "")
-      .trim();
-    return withoutFence;
-  }
-
   const first = trimmed.indexOf("{");
   const last = trimmed.lastIndexOf("}");
   if (first === -1 || last === -1 || last <= first) return null;
@@ -591,7 +563,6 @@ async function generateWithGroq(prompt: string, theme: Theme) {
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content ?? "";
   const jsonText = extractJsonObject(content);
-
   if (!jsonText) return null;
 
   try {
@@ -617,13 +588,17 @@ export async function POST(req: Request) {
   }
 
   const theme = detectTheme(prompt);
-  const groqProject = await generateWithGroq(prompt, theme);
 
-  if (groqProject) {
-    return NextResponse.json({
-      project: groqProject,
-      source: "groq",
-    });
+  try {
+    const groqProject = await generateWithGroq(prompt, theme);
+    if (groqProject) {
+      return NextResponse.json({
+        project: groqProject,
+        source: "groq",
+      });
+    }
+  } catch {
+    // ignore and fall back
   }
 
   const fallback = createFallbackProject(prompt);
