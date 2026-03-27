@@ -22,7 +22,7 @@ function fallbackReply(messages: ChatMessage[], project?: Project) {
     .find((message) => message.role === "user")?.content;
 
   if (!lastUser) {
-    return "Ask me what to improve, and I will help you refine the project.";
+    return "Tell me what you want to improve, and I will help.";
   }
 
   const name = project?.projectName ?? "the app";
