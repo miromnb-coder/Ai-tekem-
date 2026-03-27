@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Blueprint = {
   title: string;
@@ -16,13 +16,18 @@ type Blueprint = {
   status: string;
 };
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 type BuildResponse = {
   blueprint: Blueprint;
   source?: "groq" | "fallback";
   warning?: string;
 };
 
-const defaultBlueprint: Blueprint = {
+const emptyBlueprint: Blueprint = {
   title: "Ready",
   description: "Describe the app you want to build.",
   mode: "idle",
@@ -36,41 +41,67 @@ const defaultBlueprint: Blueprint = {
   status: "idle",
 };
 
-const promptPresets = [
+const presets = [
   "make a navigation app with arrow and distance",
   "make a camera app with AI scan button",
   "make a minimal HUD for smart glasses",
   "make an assistant app with voice and text",
 ];
 
+const starterChat: ChatMessage[] = [
+  {
+    role: "assistant",
+    content:
+      "I am ready. Ask me to build, improve, or explain the app you are making.",
+  },
+];
+
 export default function Page() {
   const [prompt, setPrompt] = useState(
     "make a navigation app with arrow and distance"
   );
-  const [blueprint, setBlueprint] = useState<Blueprint>(defaultBlueprint);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [source, setSource] = useState<"groq" | "fallback" | "idle">("idle");
-  const [warning, setWarning] = useState("");
+  const [blueprint, setBlueprint] = useState<Blueprint>(emptyBlueprint);
+  const [buildLoading, setBuildLoading] = useState(false);
+  const [buildError, setBuildError] = useState("");
+  const [buildWarning, setBuildWarning] = useState("");
+  const [buildSource, setBuildSource] = useState<"idle" | "groq" | "fallback">(
+    "idle"
+  );
 
-  const statusText = useMemo(() => {
-    if (loading) return "Building...";
-    if (source === "groq") return "AI connected";
-    if (source === "fallback") return "Fallback mode";
-    return "Ready";
-  }, [loading, source]);
+  const [chatMessages, setChatMessages] =
+    useState<ChatMessage[]>(starterChat);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
 
-  const statusTone = useMemo(() => {
-    if (loading) return "busy";
-    if (source === "groq") return "good";
-    if (source === "fallback") return "warn";
-    return "idle";
-  }, [loading, source]);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  async function build() {
-    setLoading(true);
-    setError("");
-    setWarning("");
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
+
+  const buildStatus =
+    buildLoading
+      ? "Building..."
+      : buildSource === "groq"
+        ? "AI connected"
+        : buildSource === "fallback"
+          ? "Fallback mode"
+          : "Ready";
+
+  const buildTone =
+    buildLoading
+      ? "busy"
+      : buildSource === "groq"
+        ? "good"
+        : buildSource === "fallback"
+          ? "warn"
+          : "idle";
+
+  async function buildApp() {
+    setBuildLoading(true);
+    setBuildError("");
+    setBuildWarning("");
 
     try {
       const res = await fetch("/api/build", {
@@ -84,17 +115,17 @@ export default function Page() {
       const data = (await res.json()) as BuildResponse;
 
       if (!res.ok) {
-        throw new Error((data as any)?.error || "Build failed");
+        throw new Error(data?.warning || "Build failed");
       }
 
-      setBlueprint(data.blueprint ?? defaultBlueprint);
-      setSource(data.source ?? "fallback");
-      setWarning(data.warning ?? "");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-      setSource("fallback");
+      setBlueprint(data.blueprint ?? emptyBlueprint);
+      setBuildSource(data.source ?? "fallback");
+      setBuildWarning(data.warning ?? "");
+    } catch (error) {
+      setBuildError(error instanceof Error ? error.message : "Unknown error");
+      setBuildSource("fallback");
     } finally {
-      setLoading(false);
+      setBuildLoading(false);
     }
   }
 
@@ -110,9 +141,60 @@ export default function Page() {
     URL.revokeObjectURL(url);
   }
 
-  function runPreview() {
-    setWarning("Preview updated.");
-    setSource(source === "idle" ? "fallback" : source);
+  async function sendChat(customText?: string) {
+    const text = (customText ?? chatInput).trim();
+    if (!text || chatLoading) return;
+
+    setChatError("");
+    setChatInput("");
+
+    const nextMessages: ChatMessage[] = [
+      ...chatMessages,
+      { role: "user", content: text },
+    ];
+
+    setChatMessages(nextMessages);
+    setChatLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: nextMessages,
+          blueprint,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Chat failed");
+      }
+
+      const reply = typeof data?.reply === "string" ? data.reply : "";
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: reply || "I could not generate a reply.",
+        },
+      ]);
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unknown error");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "I had trouble reaching the AI. Try again, or change the prompt and build again.",
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   return (
@@ -123,20 +205,21 @@ export default function Page() {
       <section className="hero">
         <div>
           <p className="eyebrow">HALO AI APP BUILDER</p>
-          <h1>Build apps from prompts</h1>
+          <h1>Build apps and chat with the AI</h1>
           <p className="subtext">
-            Turn an idea into a structured blueprint for HUD, features, and app actions.
+            Turn a prompt into a blueprint, then talk to the AI to refine it,
+            simplify it, or extend it into something bigger.
           </p>
         </div>
 
-        <div className={`status ${statusTone}`}>
+        <div className={`status ${buildTone}`}>
           <span className="dot" />
-          <span>{statusText}</span>
+          <span>{buildStatus}</span>
         </div>
       </section>
 
       <section className="quick-prompts">
-        {promptPresets.map((item) => (
+        {presets.map((item) => (
           <button
             key={item}
             className="chip"
@@ -163,25 +246,28 @@ export default function Page() {
           />
 
           <div className="button-row">
-            <button className="button primary" onClick={build} type="button">
-              {loading ? "Building..." : "Build app"}
-            </button>
-            <button className="button" onClick={runPreview} type="button">
-              Run preview
+            <button className="button primary" onClick={buildApp} type="button">
+              {buildLoading ? "Building..." : "Build app"}
             </button>
             <button className="button" onClick={exportJson} type="button">
               Export JSON
             </button>
           </div>
 
-          {error ? <p className="message error">{error}</p> : null}
-          {warning ? <p className="message warn">{warning}</p> : null}
+          {buildError ? <p className="message error">{buildError}</p> : null}
+          {buildWarning ? <p className="message warn">{buildWarning}</p> : null}
         </div>
 
         <div className="panel">
           <div className="panel-head">
             <h2>Generated blueprint</h2>
-            <span className={`badge ${source}`}>{source === "groq" ? "Groq" : source === "fallback" ? "Fallback" : "Idle"}</span>
+            <span className={`badge ${buildSource}`}>
+              {buildSource === "groq"
+                ? "Groq"
+                : buildSource === "fallback"
+                  ? "Fallback"
+                  : "Idle"}
+            </span>
           </div>
 
           <div className="summary-grid">
@@ -237,6 +323,76 @@ export default function Page() {
 
         <div className="panel full">
           <div className="panel-head">
+            <h2>Talk to the AI</h2>
+            <span className="mini-label">chat history is kept here</span>
+          </div>
+
+          <div className="chat-box">
+            {chatMessages.map((msg, index) => (
+              <div
+                key={`${msg.role}-${index}`}
+                className={`bubble ${msg.role}`}
+              >
+                {msg.content}
+              </div>
+            ))}
+            {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div className="chat-presets">
+            <button
+              className="chip small"
+              type="button"
+              onClick={() => sendChat("Make this more minimal and premium.")}
+            >
+              Make it more minimal
+            </button>
+            <button
+              className="chip small"
+              type="button"
+              onClick={() => sendChat("Add a camera mode and AI scan flow.")}
+            >
+              Add camera mode
+            </button>
+            <button
+              className="chip small"
+              type="button"
+              onClick={() =>
+                sendChat("Turn this into a smart glasses assistant app.")
+              }
+            >
+              Assistant app
+            </button>
+          </div>
+
+          <div className="chat-row">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              className="chat-input"
+              placeholder="Ask the AI what to improve..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void sendChat();
+                }
+              }}
+            />
+            <button
+              className="button primary"
+              type="button"
+              onClick={() => void sendChat()}
+            >
+              Send
+            </button>
+          </div>
+
+          {chatError ? <p className="message error">{chatError}</p> : null}
+        </div>
+
+        <div className="panel full">
+          <div className="panel-head">
             <h2>Raw JSON</h2>
             <span className="mini-label">export-ready</span>
           </div>
@@ -259,7 +415,8 @@ export default function Page() {
           min-height: 100%;
           background: #05070d;
           color: #ffffff;
-          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+            BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         body {
@@ -267,6 +424,7 @@ export default function Page() {
         }
 
         button,
+        input,
         textarea {
           font: inherit;
         }
@@ -276,8 +434,16 @@ export default function Page() {
           min-height: 100vh;
           padding: 24px;
           background:
-            radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 32%),
-            radial-gradient(circle at bottom right, rgba(83, 240, 176, 0.12), transparent 28%),
+            radial-gradient(
+              circle at top,
+              rgba(98, 143, 255, 0.18),
+              transparent 32%
+            ),
+            radial-gradient(
+              circle at bottom right,
+              rgba(83, 240, 176, 0.12),
+              transparent 28%
+            ),
             #05070d;
           overflow: hidden;
         }
@@ -339,7 +505,7 @@ export default function Page() {
         }
 
         .subtext {
-          max-width: 680px;
+          max-width: 760px;
           margin: 12px 0 0;
           color: rgba(255, 255, 255, 0.68);
           line-height: 1.65;
@@ -402,6 +568,11 @@ export default function Page() {
           border-color: rgba(134, 200, 255, 0.35);
         }
 
+        .chip.small {
+          padding: 8px 12px;
+          font-size: 13px;
+        }
+
         .grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -442,27 +613,37 @@ export default function Page() {
           text-transform: uppercase;
         }
 
-        .textarea {
+        .textarea,
+        .chat-input {
           width: 100%;
-          min-height: 160px;
           padding: 14px;
           border-radius: 18px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
           color: #ffffff;
           outline: none;
+        }
+
+        .textarea {
+          min-height: 160px;
           resize: vertical;
           margin-bottom: 14px;
         }
 
-        .textarea:focus {
+        .textarea:focus,
+        .chat-input:focus {
           border-color: rgba(134, 200, 255, 0.55);
         }
 
-        .button-row {
+        .button-row,
+        .chat-row {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
+        }
+
+        .chat-row {
+          margin-top: 12px;
         }
 
         .button {
@@ -598,6 +779,41 @@ export default function Page() {
           margin: 0;
           padding-left: 18px;
           color: rgba(255, 255, 255, 0.9);
+        }
+
+        .chat-box {
+          min-height: 240px;
+          max-height: 340px;
+          overflow-y: auto;
+          display: grid;
+          gap: 10px;
+          padding: 4px 2px 8px;
+        }
+
+        .bubble {
+          max-width: 820px;
+          padding: 12px 14px;
+          border-radius: 18px;
+          line-height: 1.55;
+          white-space: pre-wrap;
+          word-break: break-word;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bubble.user {
+          margin-left: auto;
+          background: rgba(134, 200, 255, 0.12);
+        }
+
+        .bubble.assistant {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-presets {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 10px;
         }
 
         .pre {
