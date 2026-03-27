@@ -8,37 +8,31 @@ type ChatMessage = {
   content: string;
 };
 
-type Blueprint = {
-  title: string;
-  description: string;
-  mode: string;
-  hud: {
-    direction: "left" | "right" | "up" | "down";
-    distance: number;
-    label: string;
-  };
-  features: string[];
-  actions: string[];
-  status: string;
+type Project = {
+  projectName?: string;
+  description?: string;
+  tagline?: string;
+  notes?: string[];
+  files?: { path: string; content: string }[];
 };
 
-function fallbackReply(messages: ChatMessage[], blueprint?: Blueprint) {
+function fallbackReply(messages: ChatMessage[], project?: Project) {
   const lastUser = [...messages]
     .reverse()
     .find((message) => message.role === "user")?.content;
 
   if (!lastUser) {
-    return "Ask me what to build, or ask me how to improve the current app.";
+    return "Ask me what to improve, and I will help you refine the project.";
   }
 
-  const title = blueprint?.title ?? "the app";
-  return `I can help refine ${title}. A strong next step is to keep the HUD minimal, make the main action obvious, and only add one extra feature at a time.`;
+  const name = project?.projectName ?? "the app";
+  return `For ${name}, I would keep the UI minimal, make the main action obvious, and add one feature at a time. You asked: ${lastUser}`;
 }
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     messages?: ChatMessage[];
-    blueprint?: Blueprint;
+    project?: Project;
   };
 
   const messages = Array.isArray(body.messages)
@@ -52,7 +46,7 @@ export async function POST(req: Request) {
 
   if (!messages.length) {
     return NextResponse.json({
-      reply: "Tell me what you want to build, and I will help.",
+      reply: "Tell me what you want to improve.",
       source: "fallback",
     });
   }
@@ -60,17 +54,22 @@ export async function POST(req: Request) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return NextResponse.json({
-      reply: fallbackReply(messages, body.blueprint),
+      reply: fallbackReply(messages, body.project),
       source: "fallback",
       warning: "GROQ_API_KEY is missing",
     });
   }
 
   try {
-    const context =
-      body.blueprint
-        ? `Current blueprint JSON:\n${JSON.stringify(body.blueprint, null, 2)}`
-        : "No blueprint yet.";
+    const context = body.project
+      ? [
+          `Current project name: ${body.project.projectName ?? "Unknown"}`,
+          `Description: ${body.project.description ?? "Unknown"}`,
+          `Tagline: ${body.project.tagline ?? "Unknown"}`,
+          `Notes: ${(body.project.notes ?? []).join(" | ")}`,
+          `Files: ${(body.project.files ?? []).map((file) => file.path).join(", ")}`,
+        ].join("\n")
+      : "No project loaded yet.";
 
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -82,18 +81,18 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          temperature: 0.4,
+          temperature: 0.35,
           messages: [
             {
               role: "system",
               content:
-                "You are Halo Copilot. You help the user build smart-glasses apps. Be warm, practical, and concise. If the user asks for code, give copy-paste code. If the user asks for improvements, give exact changes. Ask one short clarifying question when needed.",
+                "You are Halo Copilot. Help the user improve a smart glasses app generator. Be concise, practical, and specific. If the user asks for UI improvements, suggest exact changes. If they ask for code, give copy-paste friendly code. Keep replies short and useful.",
             },
             {
               role: "system",
               content: context,
             },
-            ...messages,
+            ...messages.slice(-12),
           ],
         }),
       }
@@ -101,7 +100,7 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       return NextResponse.json({
-        reply: fallbackReply(messages, body.blueprint),
+        reply: fallbackReply(messages, body.project),
         source: "fallback",
         warning: "Groq request failed",
       });
@@ -111,12 +110,12 @@ export async function POST(req: Request) {
     const reply = data?.choices?.[0]?.message?.content?.trim() ?? "";
 
     return NextResponse.json({
-      reply: reply || fallbackReply(messages, body.blueprint),
+      reply: reply || fallbackReply(messages, body.project),
       source: "groq",
     });
   } catch {
     return NextResponse.json({
-      reply: fallbackReply(messages, body.blueprint),
+      reply: fallbackReply(messages, body.project),
       source: "fallback",
       warning: "AI request crashed",
     });
