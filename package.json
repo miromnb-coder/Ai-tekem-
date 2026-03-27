@@ -1,5 +1,5 @@
 {
-  "name": "halo-ai-app-builder",
+  "name": "halo-ai-app-generator",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,6 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "groq-sdk": "^0.8.0",
+    "jszip": "^3.10.1",
     "next": "^15.5.14",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
