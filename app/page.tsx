@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Blueprint = {
   title: string;
@@ -56,6 +56,19 @@ const starterChat: ChatMessage[] = [
   },
 ];
 
+function arrowSymbol(direction: Blueprint["hud"]["direction"]) {
+  switch (direction) {
+    case "left":
+      return "←";
+    case "right":
+      return "→";
+    case "down":
+      return "↓";
+    default:
+      return "↑";
+  }
+}
+
 export default function Page() {
   const [prompt, setPrompt] = useState(
     "make a navigation app with arrow and distance"
@@ -74,29 +87,28 @@ export default function Page() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
 
+  const [showDevPanel, setShowDevPanel] = useState(false);
+  const [hudOnly, setHudOnly] = useState(true);
+
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, chatLoading]);
 
-  const buildStatus =
-    buildLoading
-      ? "Building..."
-      : buildSource === "groq"
-        ? "AI connected"
-        : buildSource === "fallback"
-          ? "Fallback mode"
-          : "Ready";
+  const buildStatus = useMemo(() => {
+    if (buildLoading) return "Building...";
+    if (buildSource === "groq") return "AI connected";
+    if (buildSource === "fallback") return "Fallback mode";
+    return "Ready";
+  }, [buildLoading, buildSource]);
 
-  const buildTone =
-    buildLoading
-      ? "busy"
-      : buildSource === "groq"
-        ? "good"
-        : buildSource === "fallback"
-          ? "warn"
-          : "idle";
+  const buildTone = useMemo(() => {
+    if (buildLoading) return "busy";
+    if (buildSource === "groq") return "good";
+    if (buildSource === "fallback") return "warn";
+    return "idle";
+  }, [buildLoading, buildSource]);
 
   async function buildApp() {
     setBuildLoading(true);
@@ -121,24 +133,13 @@ export default function Page() {
       setBlueprint(data.blueprint ?? emptyBlueprint);
       setBuildSource(data.source ?? "fallback");
       setBuildWarning(data.warning ?? "");
+      setHudOnly(true);
     } catch (error) {
       setBuildError(error instanceof Error ? error.message : "Unknown error");
       setBuildSource("fallback");
     } finally {
       setBuildLoading(false);
     }
-  }
-
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(blueprint, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "halo-blueprint.json";
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   async function sendChat(customText?: string) {
@@ -198,218 +199,183 @@ export default function Page() {
     }
   }
 
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(blueprint, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "halo-blueprint.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const deviceLabel = buildSource === "groq" ? "LIVE" : buildSource === "fallback" ? "SIM" : "IDLE";
+  const hudArrow = arrowSymbol(blueprint.hud.direction);
+
   return (
-    <main className="shell">
-      <div className="orb orb-a" />
-      <div className="orb orb-b" />
-      <div className="noise" />
+    <main className="scene">
+      <div className="feed feed-a" />
+      <div className="feed feed-b" />
+      <div className="feed feed-c" />
+      <div className="vignette" />
+      <div className="scanlines" />
+      <div className="grain" />
 
-      <section className="hero">
-        <div>
-          <p className="eyebrow">HALO AI APP BUILDER</p>
-          <h1>Build apps from prompts</h1>
-          <p className="subtext">
-            Turn an idea into a structured blueprint for HUD, features, and
-            actions, then refine it by chatting with the AI.
-          </p>
-        </div>
-
-        <div className={`status ${buildTone}`}>
+      <header className="overlay-top">
+        <div className={`status-pill ${buildTone}`}>
           <span className="dot" />
           <span>{buildStatus}</span>
         </div>
-      </section>
 
-      <section className="quick-prompts">
-        {presets.map((item) => (
-          <button
-            key={item}
-            className="chip"
-            onClick={() => setPrompt(item)}
-            type="button"
-          >
-            {item}
-          </button>
-        ))}
-      </section>
+        <div className="status-pill center-pill">
+          <span>{deviceLabel}</span>
+        </div>
 
-      <section className="grid">
-        <div className="panel panel-left">
-          <div className="panel-head">
-            <div>
-              <h2>Prompt</h2>
-              <p className="panel-subtitle">Type or tap a preset</p>
+        <button className="ghost-btn" onClick={() => setHudOnly((v) => !v)}>
+          {hudOnly ? "Show tools" : "Hide tools"}
+        </button>
+      </header>
+
+      <section className={`hud ${hudOnly ? "glass" : ""}`}>
+        <div className="hud-frame">
+          <div className="corner tl" />
+          <div className="corner tr" />
+          <div className="corner bl" />
+          <div className="corner br" />
+
+          <div className="tiny-tag top-left">GPS LOCK</div>
+          <div className="tiny-tag top-right">{blueprint.hud.label}</div>
+
+          <div className="reticle">
+            <div className="reticle-ring ring-1" />
+            <div className="reticle-ring ring-2" />
+            <div className="reticle-ring ring-3" />
+
+            <div className="arrow">{hudArrow}</div>
+
+            <div className="distance">
+              {Math.max(0, Math.round(blueprint.hud.distance))}
+              <span>m</span>
+            </div>
+
+            <div className="mode-line">
+              {blueprint.mode.toUpperCase()} · {blueprint.hud.direction.toUpperCase()}
             </div>
           </div>
 
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="textarea"
-            placeholder="Describe your app..."
-          />
+          <div className="chips">
+            <div className="chip glass-chip">SIG 92%</div>
+            <div className="chip glass-chip">BAT 87%</div>
+            <div className="chip glass-chip">AI READY</div>
+          </div>
+        </div>
+      </section>
 
-          <div className="button-row">
-            <button className="button primary" onClick={buildApp} type="button">
-              {buildLoading ? "Building..." : "Build app"}
+      <section className={`drawer ${showDevPanel ? "open" : ""}`}>
+        <div className="drawer-bar">
+          <button className="drawer-btn" onClick={() => setShowDevPanel((v) => !v)}>
+            {showDevPanel ? "Hide tools" : "Show tools"}
+          </button>
+
+          <div className="drawer-actions">
+            <button className="small-btn" onClick={buildApp}>
+              {buildLoading ? "Building..." : "Build"}
             </button>
-            <button className="button" onClick={exportJson} type="button">
+            <button className="small-btn" onClick={exportJson}>
               Export JSON
             </button>
           </div>
-
-          {buildError ? <p className="message error">{buildError}</p> : null}
-          {buildWarning ? <p className="message warn">{buildWarning}</p> : null}
         </div>
 
-        <div className="panel panel-right">
-          <div className="panel-head">
-            <div>
-              <h2>Generated blueprint</h2>
-              <p className="panel-subtitle">AI output and preview</p>
-            </div>
-            <span className={`badge ${buildSource}`}>
-              {buildSource === "groq"
-                ? "Groq"
-                : buildSource === "fallback"
-                  ? "Fallback"
-                  : "Idle"}
-            </span>
-          </div>
-
-          <div className="summary-grid">
-            <div className="summary-card">
-              <span className="label">Title</span>
-              <strong>{blueprint.title}</strong>
-            </div>
-            <div className="summary-card">
-              <span className="label">Mode</span>
-              <strong>{blueprint.mode}</strong>
-            </div>
-          </div>
-
-          <div className="hud-card">
-            <div className="hud-top">
-              <span className="label">HUD</span>
-              <span className="hud-pill">{blueprint.hud.label}</span>
-            </div>
-
-            <div className="hud-row">
-              <span className="arrow">{blueprint.hud.direction}</span>
-              <span className="distance">{blueprint.hud.distance}m</span>
-            </div>
-          </div>
-
-          <div className="section-block">
-            <span className="label">Description</span>
-            <p className="text">{blueprint.description}</p>
-          </div>
-
-          <div className="section-block">
-            <span className="label">Features</span>
-            <ul className="list">
-              {blueprint.features.length ? (
-                blueprint.features.map((item) => <li key={item}>{item}</li>)
-              ) : (
-                <li>No features yet</li>
-              )}
-            </ul>
-          </div>
-
-          <div className="section-block">
-            <span className="label">Actions</span>
-            <ul className="list">
-              {blueprint.actions.length ? (
-                blueprint.actions.map((item) => <li key={item}>{item}</li>)
-              ) : (
-                <li>No actions yet</li>
-              )}
-            </ul>
-          </div>
-        </div>
-
-        <div className="panel panel-chat">
-          <div className="panel-head">
-            <div>
-              <h2>Talk to the AI</h2>
-              <p className="panel-subtitle">Refine the app in conversation</p>
-            </div>
-          </div>
-
-          <div className="chat-box">
-            {chatMessages.map((msg, index) => (
-              <div
-                key={`${msg.role}-${index}`}
-                className={`bubble ${msg.role}`}
-              >
-                {msg.content}
+        {showDevPanel ? (
+          <div className="drawer-grid">
+            <div className="panel">
+              <p className="panel-kicker">Prompt</p>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="textarea"
+                placeholder="Describe your app..."
+              />
+              <div className="preset-row">
+                {presets.map((item) => (
+                  <button
+                    key={item}
+                    className="preset"
+                    onClick={() => setPrompt(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
               </div>
-            ))}
-            {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
-            <div ref={chatEndRef} />
-          </div>
 
-          <div className="chat-presets">
-            <button
-              className="chip small"
-              type="button"
-              onClick={() => sendChat("Make this more minimal and premium.")}
-            >
-              Make it more minimal
-            </button>
-            <button
-              className="chip small"
-              type="button"
-              onClick={() => sendChat("Add a camera mode and AI scan flow.")}
-            >
-              Add camera mode
-            </button>
-            <button
-              className="chip small"
-              type="button"
-              onClick={() =>
-                sendChat("Turn this into a smart glasses assistant app.")
-              }
-            >
-              Assistant app
-            </button>
-          </div>
-
-          <div className="chat-row">
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              className="chat-input"
-              placeholder="Ask the AI what to improve..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void sendChat();
-                }
-              }}
-            />
-            <button
-              className="button primary"
-              type="button"
-              onClick={() => void sendChat()}
-            >
-              Send
-            </button>
-          </div>
-
-          {chatError ? <p className="message error">{chatError}</p> : null}
-        </div>
-
-        <div className="panel panel-json">
-          <div className="panel-head">
-            <div>
-              <h2>Raw JSON</h2>
-              <p className="panel-subtitle">Copy-ready output</p>
+              {buildError ? <p className="message error">{buildError}</p> : null}
+              {buildWarning ? <p className="message warn">{buildWarning}</p> : null}
             </div>
-            <span className="mini-label">export-ready</span>
+
+            <div className="panel">
+              <p className="panel-kicker">Chat</p>
+
+              <div className="chat-box">
+                {chatMessages.map((msg, index) => (
+                  <div
+                    key={`${msg.role}-${index}`}
+                    className={`bubble ${msg.role}`}
+                  >
+                    {msg.content}
+                  </div>
+                ))}
+                {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
+                <div ref={chatEndRef} />
+              </div>
+
+              <div className="chat-row">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="chat-input"
+                  placeholder="Ask the AI what to improve..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendChat();
+                    }
+                  }}
+                />
+                <button className="small-btn" onClick={() => void sendChat()}>
+                  Send
+                </button>
+              </div>
+
+              <div className="chat-pills">
+                <button
+                  className="preset"
+                  onClick={() => sendChat("Make this more minimal and premium.")}
+                >
+                  Minimal
+                </button>
+                <button
+                  className="preset"
+                  onClick={() => sendChat("Add a camera mode and AI scan flow.")}
+                >
+                  Camera
+                </button>
+                <button
+                  className="preset"
+                  onClick={() =>
+                    sendChat("Turn this into a smart glasses assistant app.")
+                  }
+                >
+                  Assistant
+                </button>
+              </div>
+
+              {chatError ? <p className="message error">{chatError}</p> : null}
+            </div>
           </div>
-          <pre className="pre">{JSON.stringify(blueprint, null, 2)}</pre>
-        </div>
+        ) : null}
       </section>
 
       <style jsx global>{`
@@ -424,15 +390,16 @@ export default function Page() {
         html,
         body {
           margin: 0;
-          min-height: 100%;
-          background: #05070d;
-          color: #ffffff;
+          width: 100%;
+          height: 100%;
+          background: #020308;
+          color: #fff;
           font-family: Inter, ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         body {
-          overflow-x: hidden;
+          overflow: hidden;
         }
 
         button,
@@ -441,206 +408,355 @@ export default function Page() {
           font: inherit;
         }
 
-        .shell {
+        .scene {
           position: relative;
-          min-height: 100vh;
-          padding: 24px;
-          background:
-            radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
-            radial-gradient(circle at bottom right, rgba(83, 240, 176, 0.12), transparent 28%),
-            #05070d;
+          width: 100vw;
+          height: 100vh;
           overflow: hidden;
+          background:
+            radial-gradient(circle at 50% 40%, rgba(134, 200, 255, 0.12), transparent 34%),
+            radial-gradient(circle at 70% 30%, rgba(83, 240, 176, 0.08), transparent 22%),
+            linear-gradient(180deg, #05070d 0%, #020308 100%);
         }
 
-        .orb {
-          position: fixed;
-          z-index: 0;
-          filter: blur(50px);
-          pointer-events: none;
-          opacity: 0.75;
-        }
-
-        .orb-a {
-          top: -120px;
-          left: -120px;
-          width: 320px;
-          height: 320px;
-          background: rgba(98, 143, 255, 0.2);
-        }
-
-        .orb-b {
-          right: -100px;
-          bottom: -100px;
-          width: 360px;
-          height: 360px;
-          background: rgba(83, 240, 176, 0.12);
-        }
-
-        .noise {
-          position: fixed;
+        .feed {
+          position: absolute;
           inset: 0;
-          z-index: 0;
+          pointer-events: none;
+        }
+
+        .feed-a {
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 28%),
+            radial-gradient(circle at 30% 28%, rgba(88, 132, 255, 0.18), transparent 18%),
+            radial-gradient(circle at 72% 26%, rgba(83, 240, 176, 0.12), transparent 16%);
+          filter: blur(24px);
+          opacity: 0.95;
+        }
+
+        .feed-b {
           opacity: 0.08;
           background-image:
-            linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-          background-size: 36px 36px;
-          mask-image: radial-gradient(circle at center, black 44%, transparent 100%);
+            linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+          background-size: 44px 44px;
+          mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        }
+
+        .feed-c {
+          background: radial-gradient(circle at center, transparent 44%, rgba(0, 0, 0, 0.7) 100%);
+        }
+
+        .vignette,
+        .scanlines,
+        .grain {
+          position: absolute;
+          inset: 0;
           pointer-events: none;
         }
 
-        .hero,
-        .quick-prompts,
-        .grid {
-          position: relative;
-          z-index: 1;
-          max-width: 1320px;
-          margin: 0 auto;
+        .vignette {
+          background: radial-gradient(circle at center, transparent 32%, rgba(0, 0, 0, 0.62) 100%);
         }
 
-        .hero {
+        .scanlines {
+          opacity: 0.05;
+          background: repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.18) 0px,
+            rgba(255, 255, 255, 0.18) 1px,
+            transparent 1px,
+            transparent 6px
+          );
+        }
+
+        .grain {
+          opacity: 0.04;
+          background-image:
+            radial-gradient(circle, rgba(255, 255, 255, 0.5) 0.5px, transparent 0.8px);
+          background-size: 3px 3px;
+        }
+
+        .overlay-top {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          right: 16px;
+          z-index: 5;
           display: flex;
           justify-content: space-between;
-          gap: 16px;
-          align-items: flex-end;
-          margin-bottom: 18px;
+          gap: 10px;
+          align-items: center;
           flex-wrap: wrap;
         }
 
-        .eyebrow {
-          margin: 0 0 10px;
-          color: #86c8ff;
-          font-size: 12px;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-        }
-
-        h1 {
-          margin: 0;
-          font-size: clamp(34px, 5vw, 62px);
-          line-height: 0.95;
-        }
-
-        .subtext {
-          max-width: 760px;
-          margin: 12px 0 0;
-          color: rgba(255, 255, 255, 0.68);
-          line-height: 1.65;
-          font-size: 15px;
-        }
-
-        .status {
+        .status-pill {
           display: inline-flex;
           align-items: center;
           gap: 10px;
           padding: 10px 14px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.06);
-          white-space: nowrap;
+          background: rgba(255, 255, 255, 0.07);
+          backdrop-filter: blur(20px);
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          font-size: 12px;
         }
 
-        .status.good .dot {
+        .status-pill.good .dot {
           background: #53f0b0;
         }
 
-        .status.warn .dot {
+        .status-pill.warn .dot {
           background: #ffd37a;
         }
 
-        .status.busy .dot {
+        .status-pill.busy .dot {
           background: #86c8ff;
           animation: pulse 1s infinite ease-in-out;
         }
 
-        .status.idle .dot {
-          background: rgba(255, 255, 255, 0.7);
+        .status-pill.idle .dot {
+          background: rgba(255, 255, 255, 0.76);
         }
 
         .dot {
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           border-radius: 999px;
+          box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.05);
         }
 
-        .quick-prompts {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-bottom: 18px;
-        }
-
-        .chip {
+        .ghost-btn,
+        .small-btn,
+        .drawer-btn,
+        .preset {
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.05);
-          color: #ffffff;
-          padding: 10px 14px;
-          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          color: #fff;
+          border-radius: 14px;
           cursor: pointer;
-          transition: transform 0.15s ease, border-color 0.15s ease;
         }
 
-        .chip:hover {
-          transform: translateY(-1px);
-          border-color: rgba(134, 200, 255, 0.35);
+        .ghost-btn {
+          padding: 10px 14px;
+          backdrop-filter: blur(20px);
         }
 
-        .chip.small {
+        .hud {
+          position: absolute;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          z-index: 2;
+          pointer-events: none;
+        }
+
+        .hud-frame {
+          position: relative;
+          width: min(92vw, 760px);
+          height: min(92vw, 760px);
+          max-width: 760px;
+          max-height: 760px;
+          display: grid;
+          place-items: center;
+        }
+
+        .corner {
+          position: absolute;
+          width: 54px;
+          height: 54px;
+          border-color: rgba(255, 255, 255, 0.24);
+        }
+
+        .corner.tl {
+          top: 0;
+          left: 0;
+          border-top: 1px solid;
+          border-left: 1px solid;
+          border-top-left-radius: 16px;
+        }
+
+        .corner.tr {
+          top: 0;
+          right: 0;
+          border-top: 1px solid;
+          border-right: 1px solid;
+          border-top-right-radius: 16px;
+        }
+
+        .corner.bl {
+          bottom: 0;
+          left: 0;
+          border-bottom: 1px solid;
+          border-left: 1px solid;
+          border-bottom-left-radius: 16px;
+        }
+
+        .corner.br {
+          bottom: 0;
+          right: 0;
+          border-bottom: 1px solid;
+          border-right: 1px solid;
+          border-bottom-right-radius: 16px;
+        }
+
+        .tiny-tag {
+          position: absolute;
+          font-size: 11px;
+          letter-spacing: 0.24em;
+          color: rgba(255, 255, 255, 0.6);
+          text-transform: uppercase;
+        }
+
+        .top-left {
+          top: 18px;
+          left: 18px;
+        }
+
+        .top-right {
+          top: 18px;
+          right: 18px;
+        }
+
+        .reticle {
+          position: relative;
+          display: grid;
+          justify-items: center;
+          align-items: center;
+          gap: 12px;
+          transform: translateY(-6px);
+        }
+
+        .reticle-ring {
+          position: absolute;
+          inset: 50%;
+          transform: translate(-50%, -50%);
+          border-radius: 999px;
+          border: 1px solid rgba(134, 200, 255, 0.18);
+          box-shadow: 0 0 40px rgba(134, 200, 255, 0.06);
+        }
+
+        .ring-1 {
+          width: 170px;
+          height: 170px;
+          animation: pulse 3.6s ease-in-out infinite;
+        }
+
+        .ring-2 {
+          width: 300px;
+          height: 300px;
+          opacity: 0.72;
+        }
+
+        .ring-3 {
+          width: 456px;
+          height: 456px;
+          opacity: 0.4;
+        }
+
+        .arrow {
+          font-size: clamp(72px, 10vw, 122px);
+          line-height: 1;
+          font-weight: 800;
+          text-shadow: 0 0 30px rgba(134, 200, 255, 0.25);
+          filter: drop-shadow(0 0 18px rgba(134, 200, 255, 0.14));
+        }
+
+        .distance {
+          font-size: clamp(28px, 4vw, 54px);
+          font-weight: 800;
+          letter-spacing: -0.05em;
+        }
+
+        .distance span {
+          font-size: 0.42em;
+          color: rgba(255, 255, 255, 0.64);
+          margin-left: 6px;
+        }
+
+        .mode-line {
+          font-size: 12px;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.58);
+        }
+
+        .chips {
+          position: absolute;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .glass-chip {
           padding: 8px 12px;
-          font-size: 13px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 12px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          backdrop-filter: blur(18px);
         }
 
-        .grid {
+        .drawer {
+          position: absolute;
+          left: 50%;
+          bottom: 16px;
+          transform: translateX(-50%);
+          width: min(1180px, calc(100vw - 24px));
+          z-index: 6;
+          pointer-events: auto;
+        }
+
+        .drawer-bar {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 10px;
+          flex-wrap: wrap;
+        }
+
+        .drawer-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .drawer-btn,
+        .small-btn {
+          padding: 10px 14px;
+        }
+
+        .drawer-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 18px;
+          gap: 14px;
+          padding: 14px;
+          border-radius: 24px;
+          background: rgba(12, 16, 28, 0.86);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(24px);
+          box-shadow: 0 26px 70px rgba(0, 0, 0, 0.35);
         }
 
         .panel {
-          padding: 20px;
-          border-radius: 24px;
-          background: rgba(12, 16, 28, 0.9);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
-          backdrop-filter: blur(18px);
           min-width: 0;
         }
 
-        .panel-left,
-        .panel-right,
-        .panel-chat {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .panel-json {
-          grid-column: 1 / -1;
-        }
-
-        .panel-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 14px;
-          flex-wrap: wrap;
-        }
-
-        .panel-head h2 {
-          margin: 0;
-          font-size: 18px;
-        }
-
-        .panel-subtitle {
-          margin: 6px 0 0;
-          color: rgba(255, 255, 255, 0.55);
-          font-size: 13px;
-        }
-
-        .mini-label {
-          color: rgba(255, 255, 255, 0.55);
+        .panel-kicker {
+          margin: 0 0 10px;
+          color: #86c8ff;
           font-size: 12px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
         }
 
@@ -648,17 +764,16 @@ export default function Page() {
         .chat-input {
           width: 100%;
           padding: 14px;
-          border-radius: 18px;
+          border-radius: 16px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          color: #ffffff;
+          color: #fff;
           outline: none;
         }
 
         .textarea {
-          min-height: 160px;
+          min-height: 120px;
           resize: vertical;
-          margin-bottom: 14px;
         }
 
         .textarea:focus,
@@ -666,165 +781,31 @@ export default function Page() {
           border-color: rgba(134, 200, 255, 0.55);
         }
 
-        .button-row,
-        .chat-row {
+        .preset-row,
+        .chat-pills {
           display: flex;
-          flex-wrap: wrap;
           gap: 10px;
-        }
-
-        .chat-row {
-          margin-top: 12px;
-        }
-
-        .button {
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.05);
-          color: #fff;
-          padding: 12px 16px;
-          border-radius: 16px;
-          cursor: pointer;
-        }
-
-        .button.primary {
-          background: linear-gradient(135deg, #86c8ff, #53f0b0);
-          color: #04111f;
-          border: none;
-          font-weight: 700;
-        }
-
-        .message {
-          margin: 12px 0 0;
-        }
-
-        .message.error {
-          color: #ff8e8e;
-        }
-
-        .message.warn {
-          color: #ffd37a;
-        }
-
-        .badge {
-          padding: 8px 12px;
-          border-radius: 999px;
-          font-size: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.06);
-        }
-
-        .badge.groq {
-          background: rgba(83, 240, 176, 0.14);
-        }
-
-        .badge.fallback {
-          background: rgba(255, 211, 122, 0.14);
-        }
-
-        .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-
-        .summary-card {
-          padding: 16px;
-          border-radius: 18px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          min-width: 0;
-        }
-
-        .label {
-          display: block;
-          margin-bottom: 8px;
-          color: rgba(255, 255, 255, 0.54);
-          font-size: 12px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-        }
-
-        .summary-card strong {
-          display: block;
-          font-size: 18px;
-          word-break: break-word;
-        }
-
-        .hud-card {
-          padding: 18px;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(255, 255, 255, 0.04);
-          margin-bottom: 14px;
-        }
-
-        .hud-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-
-        .hud-pill {
-          padding: 8px 12px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgba(255, 255, 255, 0.8);
-          font-size: 12px;
-        }
-
-        .hud-row {
-          display: flex;
-          align-items: baseline;
-          gap: 14px;
           flex-wrap: wrap;
+          margin-top: 10px;
         }
 
-        .arrow {
-          font-size: clamp(56px, 8vw, 86px);
-          line-height: 1;
-          font-weight: 800;
-          text-transform: uppercase;
-        }
-
-        .distance {
-          font-size: clamp(30px, 5vw, 44px);
-          font-weight: 800;
-        }
-
-        .section-block {
-          margin-bottom: 14px;
-        }
-
-        .text {
-          margin: 0;
-          color: rgba(255, 255, 255, 0.92);
-          line-height: 1.6;
-          word-break: break-word;
-        }
-
-        .list {
-          margin: 0;
-          padding-left: 18px;
-          color: rgba(255, 255, 255, 0.9);
+        .preset {
+          padding: 9px 12px;
+          font-size: 12px;
         }
 
         .chat-box {
-          min-height: 240px;
-          max-height: 340px;
+          min-height: 180px;
+          max-height: 250px;
           overflow-y: auto;
           display: grid;
           gap: 10px;
-          padding: 4px 2px 8px;
         }
 
         .bubble {
-          max-width: 820px;
+          max-width: 100%;
           padding: 12px 14px;
-          border-radius: 18px;
+          border-radius: 16px;
           line-height: 1.55;
           white-space: pre-wrap;
           word-break: break-word;
@@ -840,82 +821,93 @@ export default function Page() {
           background: rgba(255, 255, 255, 0.05);
         }
 
-        .chat-presets {
+        .chat-row {
           display: flex;
-          flex-wrap: wrap;
           gap: 10px;
           margin-top: 10px;
         }
 
-        .pre {
-          margin: 0;
-          padding: 16px;
-          border-radius: 18px;
-          overflow: auto;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          max-width: 100%;
+        .chat-row .chat-input {
+          flex: 1;
+        }
+
+        .message {
+          margin: 10px 0 0;
+        }
+
+        .message.error {
+          color: #ff8e8e;
+        }
+
+        .message.warn {
+          color: #ffd37a;
         }
 
         @keyframes pulse {
           0%,
           100% {
-            transform: scale(1);
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.92;
           }
           50% {
-            transform: scale(1.12);
+            transform: translate(-50%, -50%) scale(1.04);
+            opacity: 1;
           }
         }
 
         @media (max-width: 920px) {
-          .grid {
+          .drawer-grid {
             grid-template-columns: 1fr;
           }
 
-          .panel-json {
-            grid-column: auto;
+          .hud-frame {
+            width: 96vw;
+            height: 96vw;
           }
 
-          .summary-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .hero {
-            align-items: flex-start;
-          }
-
-          .status {
-            width: 100%;
-            justify-content: center;
+          .chips {
+            width: calc(100% - 20px);
           }
         }
 
         @media (max-width: 640px) {
-          .shell {
-            padding: 16px;
-          }
-
-          .panel {
-            padding: 16px;
-            border-radius: 20px;
-          }
-
-          .quick-prompts {
+          .overlay-top {
             gap: 8px;
           }
 
-          .chip {
+          .status-pill {
             width: 100%;
-            text-align: left;
+            justify-content: center;
           }
 
-          .button,
-          .chat-input {
+          .ghost-btn {
             width: 100%;
           }
 
+          .drawer {
+            width: calc(100vw - 16px);
+            bottom: 8px;
+          }
+
+          .drawer-bar,
+          .drawer-actions,
           .chat-row {
             display: grid;
+          }
+
+          .drawer-btn,
+          .small-btn,
+          .preset {
+            width: 100%;
+          }
+
+          .hud-frame {
+            width: 100vw;
+            height: 100vw;
+          }
+
+          .hud-bottom {
+            width: calc(100% - 24px);
           }
         }
       `}</style>
