@@ -74,54 +74,54 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function getPreviewConfig(project: GeneratedProject | null) {
+function previewConfig(project: GeneratedProject | null) {
   const name = project?.projectName?.toLowerCase() ?? "";
 
   if (name.includes("camera")) {
     return {
+      title: "Camera preview",
       badge: "SCAN READY",
-      headline: "Camera-first assistant",
       arrow: "↑",
       distance: "12",
       chips: ["AI scan", "Capture", "Analyze"],
-      accent: "camera",
+      tone: "camera",
     };
   }
 
   if (name.includes("assistant")) {
     return {
+      title: "Assistant preview",
       badge: "ASSISTANT ONLINE",
-      headline: "Wearable assistant",
       arrow: "→",
       distance: "0",
       chips: ["Ask", "Reply", "Notes"],
-      accent: "assistant",
+      tone: "assistant",
     };
   }
 
   if (name.includes("navigation")) {
     return {
+      title: "Navigation preview",
       badge: "ROUTE LOCKED",
-      headline: "Navigation HUD",
       arrow: "→",
       distance: "42",
       chips: ["Route", "Recenter", "Voice"],
-      accent: "navigation",
+      tone: "navigation",
     };
   }
 
   return {
+    title: "Glass preview",
     badge: "PREVIEW READY",
-    headline: project?.projectName ?? "Glass app preview",
     arrow: "↑",
     distance: "24",
     chips: ["Open", "Refine", "Export"],
-    accent: "default",
+    tone: "default",
   };
 }
 
 function buildPreviewSrcDoc(project: GeneratedProject | null) {
-  const config = getPreviewConfig(project);
+  const cfg = previewConfig(project);
   const title = escapeHtml(project?.projectName ?? "Generated project");
   const tagline = escapeHtml(project?.tagline ?? "Your app will appear here.");
   const description = escapeHtml(
@@ -133,7 +133,9 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
     .map((item) => `<span class="chip">${escapeHtml(item)}</span>`)
     .join("");
 
-  const chips = config.chips.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("");
+  const chips = cfg.chips
+    .map((item) => `<span class="chip">${escapeHtml(item)}</span>`)
+    .join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -141,21 +143,19 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root {
-      color-scheme: dark;
-    }
+    :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #fff;
       overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at top, rgba(98, 143, 255, 0.18), transparent 30%),
+        radial-gradient(circle at 30% 20%, rgba(134, 200, 255, 0.18), transparent 24%),
         radial-gradient(circle at 80% 20%, rgba(83, 240, 176, 0.12), transparent 26%),
         linear-gradient(180deg, #0a0e18 0%, #04070d 100%);
+      color: #fff;
     }
     body::before {
       content: "";
@@ -170,10 +170,9 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
       pointer-events: none;
     }
     .wrap {
-      position: relative;
       width: 100%;
       height: 100%;
-      padding: 18px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -197,8 +196,8 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
       backdrop-filter: blur(18px);
     }
     .hero {
-      max-width: 380px;
-      padding-top: 8px;
+      max-width: 420px;
+      padding-top: 4px;
     }
     .kicker {
       margin: 0 0 10px;
@@ -239,9 +238,7 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
       text-transform: uppercase;
       color: rgba(255,255,255,0.64);
     }
-    .mini.muted {
-      color: rgba(255,255,255,0.5);
-    }
+    .mini.muted { color: rgba(255,255,255,0.5); }
     .center {
       display: grid;
       justify-items: center;
@@ -264,7 +261,7 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
       color: rgba(255,255,255,0.62);
       margin-left: 6px;
     }
-    .rows {
+    .rows, .footer {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -288,20 +285,20 @@ function buildPreviewSrcDoc(project: GeneratedProject | null) {
 
     <div class="hero">
       <p class="kicker">${title}</p>
-      <h1>${escapeHtml(config.headline)}</h1>
+      <h1>${escapeHtml(cfg.title)}</h1>
       <p class="copy">${tagline}</p>
       <p class="copy">${description}</p>
     </div>
 
     <div class="hud">
       <div class="hud-top">
-        <span class="mini">${escapeHtml(config.badge)}</span>
+        <span class="mini">${escapeHtml(cfg.badge)}</span>
         <span class="mini muted">Preview mode</span>
       </div>
 
       <div class="center">
-        <div class="arrow">${config.arrow}</div>
-        <div class="distance">${config.distance}<span>m</span></div>
+        <div class="arrow">${cfg.arrow}</div>
+        <div class="distance">${cfg.distance}<span>m</span></div>
       </div>
 
       <div class="rows">
@@ -329,7 +326,7 @@ export default function Page() {
     {
       role: "assistant",
       content:
-        "Ask me to improve the generated app, change the style, or add new features.",
+        "Ask me to improve the project, change the style, or add features.",
     },
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -339,11 +336,6 @@ export default function Page() {
   useEffect(() => {
     setSelectedPath(project?.files?.[0]?.path ?? "");
   }, [project]);
-
-  useEffect(() => {
-    const last = document.querySelector<HTMLDivElement>(".chat-box .last-anchor");
-    last?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, chatLoading]);
 
   const selectedFile = useMemo(() => {
     if (!project) return null;
@@ -355,7 +347,7 @@ export default function Page() {
   }, [project, selectedPath]);
 
   const previewSrcDoc = useMemo(() => buildPreviewSrcDoc(project), [project]);
-  const previewConfig = useMemo(() => getPreviewConfig(project), [project]);
+  const cfg = useMemo(() => previewConfig(project), [project]);
 
   const buildStatus =
     loading
@@ -450,7 +442,6 @@ export default function Page() {
 
   async function copyCode() {
     if (!selectedFile) return;
-
     await navigator.clipboard.writeText(selectedFile.content);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
@@ -491,7 +482,10 @@ export default function Page() {
 
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: String(data?.reply ?? "I could not answer.") },
+        {
+          role: "assistant",
+          content: String(data?.reply ?? "I could not answer."),
+        },
       ]);
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Unknown error");
@@ -500,7 +494,7 @@ export default function Page() {
         {
           role: "assistant",
           content:
-            "I had trouble reaching the AI. Try again, or change the prompt and generate again.",
+            "I had trouble reaching the AI. Try again, or generate the project again.",
         },
       ]);
     } finally {
@@ -519,7 +513,7 @@ export default function Page() {
       <div className="noise" />
 
       <section className="hero">
-        <div>
+        <div className="hero-copy">
           <p className="eyebrow">AI APP GENERATOR</p>
           <h1>Build real projects from a prompt</h1>
           <p className="subtext">
@@ -533,7 +527,17 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="toolbar">
+      <section className="prompt-panel panel">
+        <div className="prompt-top">
+          <div>
+            <h2>Describe the app</h2>
+            <p className="panel-subtitle">
+              Start with an idea and turn it into a structured project.
+            </p>
+          </div>
+          <div className="prompt-count">{project ? `${fileCount} files` : "No project yet"}</div>
+        </div>
+
         <textarea
           className="prompt"
           value={prompt}
@@ -603,168 +607,201 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="grid">
-        <div className="panel left">
-          <div className="panel-head">
-            <div>
-              <h2>Files</h2>
-              <p className="panel-subtitle">
-                Click a file to see the code output
+      <section className="content-grid">
+        <div className="left-col">
+          <div className="panel section-panel">
+            <div className="panel-head">
+              <div>
+                <h2>Files</h2>
+                <p className="panel-subtitle">
+                  Select a file to inspect its code.
+                </p>
+              </div>
+            </div>
+
+            <div className="project-card">
+              <p className="project-title">
+                {project?.projectName ?? "Generated project"}
               </p>
+              <p className="project-subtitle">
+                {project?.tagline ?? "Generate a project to see it here."}
+              </p>
+              <p className="project-copy">
+                {project?.description ?? "Prompt your AI to create a full app."}
+              </p>
+            </div>
+
+            <div className="file-list">
+              {project?.files?.length ? (
+                project.files.map((file) => (
+                  <button
+                    key={file.path}
+                    className={`file-item ${
+                      selectedPath === file.path ? "active" : ""
+                    }`}
+                    onClick={() => setSelectedPath(file.path)}
+                    type="button"
+                  >
+                    <span className="file-path">{file.path}</span>
+                    <span className="file-lang">{fileLanguage(file.path)}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="empty-state">
+                  Generate a project and the files will appear here.
+                </div>
+              )}
+            </div>
+
+            <div className="chip-row">
+              {stackChips.map((item) => (
+                <span key={item} className="chip">
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
 
-          <div className="project-card">
-            <p className="project-title">
-              {project?.projectName ?? "Generated project"}
-            </p>
-            <p className="project-subtitle">
-              {project?.tagline ?? "Generate a project to see it here."}
-            </p>
-            <p className="project-copy">
-              {project?.description ?? "Prompt your AI to create a full app."}
-            </p>
+          <div className="panel section-panel">
+            <div className="panel-head">
+              <div>
+                <h2>Code output</h2>
+                <p className="panel-subtitle">
+                  {selectedFile
+                    ? selectedFile.path
+                    : "Select a file to preview its code"}
+                </p>
+              </div>
+
+              <button
+                className="button"
+                onClick={copyCode}
+                type="button"
+                disabled={!selectedFile}
+              >
+                {copied ? "Copied" : "Copy code"}
+              </button>
+            </div>
+
+            {selectedFile ? (
+              <>
+                <div className="code-meta">
+                  <span className="code-pill">
+                    {fileLanguage(selectedFile.path)}
+                  </span>
+                  <span className="code-pill muted">{selectedFile.path}</span>
+                </div>
+
+                <pre className="code">{selectedCode}</pre>
+              </>
+            ) : (
+              <div className="empty-state code-empty">
+                No file selected yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="right-col">
+          <div className="panel section-panel">
+            <div className="panel-head">
+              <div>
+                <h2>{cfg.title}</h2>
+                <p className="panel-subtitle">
+                  The generated app appears here as a live preview.
+                </p>
+              </div>
+            </div>
+
+            <div className={`app-preview ${cfg.tone}`}>
+              {project ? (
+                <iframe
+                  title="Generated app preview"
+                  srcDoc={previewSrcDoc}
+                  className="preview-iframe"
+                />
+              ) : (
+                <div className="preview-empty">
+                  Generate a project to see the live preview.
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="file-list">
-            {project?.files?.length ? (
-              project.files.map((file) => (
-                <button
-                  key={file.path}
-                  className={`file-item ${selectedPath === file.path ? "active" : ""}`}
-                  onClick={() => setSelectedPath(file.path)}
-                  type="button"
+          <div className="panel section-panel">
+            <div className="panel-head">
+              <div>
+                <h2>Chat AI</h2>
+                <p className="panel-subtitle">
+                  Ask the AI to improve the current project.
+                </p>
+              </div>
+            </div>
+
+            <div className="chat-box">
+              {chatMessages.map((msg, index) => (
+                <div
+                  key={`${msg.role}-${index}`}
+                  className={`bubble ${msg.role}`}
                 >
-                  <span className="file-path">{file.path}</span>
-                  <span className="file-lang">{fileLanguage(file.path)}</span>
-                </button>
-              ))
-            ) : (
-              <div className="empty-state">
-                Generate a project and the files will appear here.
-              </div>
-            )}
-          </div>
-
-          <div className="chip-row">
-            {stackChips.map((item) => (
-              <span key={item} className="chip">
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="panel right">
-          <div className="panel-head">
-            <div>
-              <h2>Code output</h2>
-              <p className="panel-subtitle">
-                {selectedFile ? selectedFile.path : "Select a file to preview its code"}
-              </p>
+                  {msg.content}
+                </div>
+              ))}
+              {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
+              <div className="chat-anchor" />
             </div>
 
-            <button
-              className="button"
-              onClick={copyCode}
-              type="button"
-              disabled={!selectedFile}
-            >
-              {copied ? "Copied" : "Copy code"}
-            </button>
-          </div>
-
-          {selectedFile ? (
-            <>
-              <div className="code-meta">
-                <span className="code-pill">{fileLanguage(selectedFile.path)}</span>
-                <span className="code-pill muted">{selectedFile.path}</span>
-              </div>
-
-              <pre className="code">{selectedCode}</pre>
-            </>
-          ) : (
-            <div className="empty-state code-empty">No file selected yet.</div>
-          )}
-        </div>
-
-        <div className="panel preview">
-          <div className="panel-head">
-            <div>
-              <h2>App preview</h2>
-              <p className="panel-subtitle">
-                This iframe is built from the generated project
-              </p>
+            <div className="chat-presets">
+              <button
+                className="preset"
+                type="button"
+                onClick={() => sendChat("Make this more minimal and premium.")}
+              >
+                Minimal
+              </button>
+              <button
+                className="preset"
+                type="button"
+                onClick={() => sendChat("Add a camera mode and AI scan flow.")}
+              >
+                Camera
+              </button>
+              <button
+                className="preset"
+                type="button"
+                onClick={() =>
+                  sendChat("Turn this into a smart glasses assistant app.")
+                }
+              >
+                Assistant
+              </button>
             </div>
-          </div>
 
-          <div className={`app-preview ${previewConfig.accent}`}>
-            {project ? (
-              <iframe
-                title="Generated app preview"
-                srcDoc={previewSrcDoc}
-                className="preview-iframe"
+            <div className="chat-row">
+              <input
+                className="chat-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask the AI what to improve..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void sendChat();
+                  }
+                }}
               />
-            ) : (
-              <div className="preview-empty">
-                Generate a project to see the live preview.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="panel chat-panel">
-        <div className="panel-head">
-          <div>
-            <h2>Chat AI</h2>
-            <p className="panel-subtitle">
-              Ask the AI to improve the current project
-            </p>
-          </div>
-        </div>
-
-        <div className="chat-box">
-          {chatMessages.map((msg, index) => (
-            <div key={`${msg.role}-${index}`} className={`bubble ${msg.role}`}>
-              {msg.content}
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => void sendChat()}
+              >
+                Send
+              </button>
             </div>
-          ))}
-          {chatLoading ? <div className="bubble assistant">Thinking…</div> : null}
-          <div className="last-anchor" />
-        </div>
 
-        <div className="chat-presets">
-          <button className="preset" type="button" onClick={() => sendChat("Make this more minimal and premium.")}>
-            Minimal
-          </button>
-          <button className="preset" type="button" onClick={() => sendChat("Add a camera mode and AI scan flow.")}>
-            Camera
-          </button>
-          <button className="preset" type="button" onClick={() => sendChat("Turn this into a smart glasses assistant app.")}>
-            Assistant
-          </button>
+            {chatError ? <p className="message error">{chatError}</p> : null}
+          </div>
         </div>
-
-        <div className="chat-row">
-          <input
-            className="chat-input"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Ask the AI what to improve..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void sendChat();
-              }
-            }}
-          />
-          <button className="button primary" type="button" onClick={() => void sendChat()}>
-            Send
-          </button>
-        </div>
-
-        {chatError ? <p className="message error">{chatError}</p> : null}
       </section>
 
       <section className="panel notes">
@@ -786,9 +823,11 @@ export default function Page() {
         </div>
 
         <ul className="notes-list">
-          {(project?.notes ?? ["Generate a project to see the notes."]).map((note) => (
-            <li key={note}>{note}</li>
-          ))}
+          {(project?.notes ?? ["Generate a project to see the notes."]).map(
+            (note) => (
+              <li key={note}>{note}</li>
+            )
+          )}
         </ul>
 
         {showManifest && project ? (
@@ -811,7 +850,8 @@ export default function Page() {
           min-height: 100%;
           background: #05070d;
           color: #fff;
-          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+            BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         body {
@@ -872,14 +912,13 @@ export default function Page() {
         }
 
         .hero,
-        .toolbar,
+        .prompt-panel,
         .stats,
-        .grid,
-        .notes,
-        .chat-panel {
+        .content-grid,
+        .notes {
           position: relative;
           z-index: 1;
-          max-width: 1400px;
+          max-width: 1460px;
           margin: 0 auto 18px;
         }
 
@@ -889,6 +928,11 @@ export default function Page() {
           gap: 16px;
           align-items: flex-end;
           flex-wrap: wrap;
+          margin-bottom: 20px;
+        }
+
+        .hero-copy {
+          max-width: 900px;
         }
 
         .eyebrow {
@@ -901,13 +945,14 @@ export default function Page() {
 
         h1 {
           margin: 0;
-          font-size: clamp(34px, 5vw, 62px);
+          font-size: clamp(36px, 5.4vw, 68px);
           line-height: 0.95;
+          letter-spacing: -0.06em;
         }
 
         .subtext {
-          max-width: 780px;
-          margin: 12px 0 0;
+          max-width: 820px;
+          margin: 14px 0 0;
           color: rgba(255, 255, 255, 0.68);
           line-height: 1.65;
           font-size: 15px;
@@ -947,7 +992,6 @@ export default function Page() {
           border-radius: 999px;
         }
 
-        .toolbar,
         .panel,
         .stat-card {
           backdrop-filter: blur(18px);
@@ -956,15 +1000,51 @@ export default function Page() {
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
         }
 
-        .toolbar {
-          padding: 18px;
+        .panel {
+          padding: 20px;
           border-radius: 24px;
+        }
+
+        .prompt-panel {
+          padding: 20px;
+          border-radius: 28px;
+        }
+
+        .prompt-top,
+        .panel-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
+        }
+
+        .prompt-top h2,
+        .panel-head h2 {
+          margin: 0;
+          font-size: 18px;
+        }
+
+        .panel-subtitle {
+          margin: 6px 0 0;
+          color: rgba(255, 255, 255, 0.55);
+          font-size: 13px;
+        }
+
+        .prompt-count {
+          padding: 8px 12px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.75);
         }
 
         .prompt {
           width: 100%;
-          min-height: 120px;
-          padding: 14px;
+          min-height: 118px;
+          padding: 16px;
           border-radius: 18px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
@@ -973,7 +1053,8 @@ export default function Page() {
           outline: none;
         }
 
-        .prompt:focus {
+        .prompt:focus,
+        .chat-input:focus {
           border-color: rgba(134, 200, 255, 0.55);
         }
 
@@ -993,9 +1074,7 @@ export default function Page() {
         .preset,
         .button,
         .chip,
-        .preview-badge,
-        .preview-btn,
-        .preview-chip {
+        .code-pill {
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.05);
           color: #fff;
@@ -1052,36 +1131,21 @@ export default function Page() {
           word-break: break-word;
         }
 
-        .grid {
+        .content-grid {
           display: grid;
-          grid-template-columns: 0.8fr 1fr 1fr;
+          grid-template-columns: 1.1fr 0.9fr;
           gap: 18px;
         }
 
-        .panel {
-          padding: 20px;
-          border-radius: 24px;
+        .left-col,
+        .right-col {
+          display: grid;
+          gap: 18px;
           min-width: 0;
         }
 
-        .panel-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 14px;
-          flex-wrap: wrap;
-        }
-
-        .panel-head h2 {
-          margin: 0;
-          font-size: 18px;
-        }
-
-        .panel-subtitle {
-          margin: 6px 0 0;
-          color: rgba(255, 255, 255, 0.55);
-          font-size: 13px;
+        .section-panel {
+          min-width: 0;
         }
 
         .project-card {
@@ -1112,7 +1176,7 @@ export default function Page() {
         .file-list {
           display: grid;
           gap: 10px;
-          max-height: 340px;
+          max-height: 320px;
           overflow: auto;
           padding-right: 2px;
         }
@@ -1164,11 +1228,6 @@ export default function Page() {
           background: rgba(255, 255, 255, 0.03);
         }
 
-        .right {
-          display: flex;
-          flex-direction: column;
-        }
-
         .code-meta {
           display: flex;
           gap: 10px;
@@ -1178,9 +1237,6 @@ export default function Page() {
 
         .code-pill {
           padding: 8px 12px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
           font-size: 12px;
         }
 
@@ -1190,8 +1246,8 @@ export default function Page() {
 
         .code {
           margin: 0;
-          min-height: 580px;
-          max-height: 680px;
+          min-height: 420px;
+          max-height: 520px;
           overflow: auto;
           padding: 16px;
           border-radius: 18px;
@@ -1202,14 +1258,9 @@ export default function Page() {
           line-height: 1.7;
         }
 
-        .preview {
-          display: flex;
-          flex-direction: column;
-        }
-
         .app-preview {
-          min-height: 640px;
-          border-radius: 24px;
+          min-height: 520px;
+          border-radius: 22px;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.1);
           background:
@@ -1221,14 +1272,14 @@ export default function Page() {
         .preview-iframe {
           width: 100%;
           height: 100%;
-          min-height: 640px;
+          min-height: 520px;
           border: 0;
           display: block;
           background: transparent;
         }
 
         .preview-empty {
-          min-height: 640px;
+          min-height: 520px;
           display: grid;
           place-items: center;
           color: rgba(255, 255, 255, 0.68);
@@ -1236,14 +1287,9 @@ export default function Page() {
           text-align: center;
         }
 
-        .chat-panel {
-          padding: 20px;
-          border-radius: 24px;
-        }
-
         .chat-box {
-          min-height: 220px;
-          max-height: 320px;
+          min-height: 240px;
+          max-height: 340px;
           overflow-y: auto;
           display: grid;
           gap: 10px;
@@ -1283,14 +1329,6 @@ export default function Page() {
           background: rgba(255, 255, 255, 0.04);
           color: #fff;
           outline: none;
-        }
-
-        .chat-input:focus {
-          border-color: rgba(134, 200, 255, 0.55);
-        }
-
-        .preview-chip-row {
-          margin-top: 14px;
         }
 
         .notes {
@@ -1337,19 +1375,13 @@ export default function Page() {
           }
         }
 
-        @media (max-width: 1200px) {
-          .grid {
+        @media (max-width: 1180px) {
+          .content-grid {
             grid-template-columns: 1fr;
           }
 
-          .code {
-            min-height: 420px;
-          }
-
-          .app-preview,
-          .preview-iframe,
-          .preview-empty {
-            min-height: 520px;
+          .stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
@@ -1367,8 +1399,14 @@ export default function Page() {
             justify-content: center;
           }
 
+          .stats {
+            grid-template-columns: 1fr;
+          }
+
           .toolbar-actions,
-          .preset-row {
+          .preset-row,
+          .chat-presets,
+          .chat-row {
             display: grid;
           }
 
@@ -1378,19 +1416,15 @@ export default function Page() {
             width: 100%;
           }
 
-          .preview-actions,
-          .chat-row {
-            display: grid;
-          }
-
-          .preview-btn {
-            width: 100%;
+          .preview-iframe,
+          .preview-empty,
+          .app-preview {
+            min-height: 420px;
           }
 
           .panel,
-          .toolbar,
-          .notes,
-          .chat-panel {
+          .prompt-panel,
+          .notes {
             border-radius: 20px;
           }
         }
